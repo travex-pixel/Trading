@@ -1,0 +1,214 @@
+@import "tailwindcss";
+
+/*
+  EdgeLab design tokens.
+  Scene: a trader at a desk in the evening, dim room, two screens. Dark ground,
+  warm off-white ink, hairline rules, mono figures. Emerald and red are reserved
+  for signed performance; slate blue annotates, selects and focuses.
+*/
+:root {
+  color-scheme: dark;
+
+  --ground: #0c0d10;
+  --panel: #121317;
+  --raised: #17181d;
+  --hover: #1c1d23;
+  --hairline: #1f2026;
+  --border: #2a2b32;
+  --border-strong: #3a3b44;
+
+  --ink: #ece9e2;
+  --ink-2: #a9a69f;
+  --ink-3: #74726c;
+  --ink-4: #4e4d49;
+
+  --annot: #7aa2d6;
+  --annot-dim: rgba(122, 162, 214, 0.14);
+
+  --up: #3ecf8e;
+  --up-dim: rgba(62, 207, 142, 0.12);
+  --down: #f0716a;
+  --down-dim: rgba(240, 113, 106, 0.12);
+  --warn: #e0a84a;
+  --warn-dim: rgba(224, 168, 74, 0.12);
+
+  /* Categorical series for comparison charts (validated for the dark surface). */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-muted: #6b6a66;
+
+  --radius-sm: 3px;
+  --radius-md: 5px;
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-hover: var(--hover);
+  --color-hairline: var(--hairline);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-annot: var(--annot);
+  --color-annot-dim: var(--annot-dim);
+  --color-up: var(--up);
+  --color-up-dim: var(--up-dim);
+  --color-down: var(--down);
+  --color-down-dim: var(--down-dim);
+  --color-warn: var(--warn);
+  --color-warn-dim: var(--warn-dim);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
+  --color-series-5: var(--series-5);
+  --color-series-muted: var(--series-muted);
+
+  --font-sans: var(--font-schibsted), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-sometype), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-sm: 3px;
+  --radius-md: 5px;
+
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem; /* 12px */
+  --text-xs--line-height: 1.1rem;
+  --text-sm: 0.8125rem; /* 13px */
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.9375rem; /* 15px */
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem; /* 18px */
+  --text-lg--line-height: 1.6rem;
+  --text-xl: 1.375rem; /* 22px */
+  --text-xl--line-height: 1.8rem;
+  --text-2xl: 1.75rem; /* 28px */
+  --text-2xl--line-height: 2.1rem;
+  --text-3xl: 2.375rem; /* 38px */
+  --text-3xl--line-height: 2.6rem;
+
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+html {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  min-height: 100dvh;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  font-feature-settings: "ss01", "cv05";
+}
+
+::selection {
+  background: var(--annot);
+  color: var(--ground);
+}
+
+:focus-visible {
+  outline: 2px solid var(--annot);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+  letter-spacing: -0.01em;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Figures: mono with tabular alignment inside tables; proportional for hero numbers. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.num-hero {
+  font-family: var(--font-mono);
+  font-variant-numeric: proportional-nums;
+  letter-spacing: -0.03em;
+}
+
+/* Hairline rules used as the shell's structure. */
+.rule {
+  border-top: 1px solid var(--hairline);
+}
+
+/* Native controls in the house material. */
+input[type="range"] {
+  accent-color: var(--annot);
+}
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--annot);
+}
+
+/* Tables */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+.table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table td {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--hairline);
+  vertical-align: middle;
+}
+.table tr:last-child td {
+  border-bottom: 0;
+}
+.table th.num,
+.table td.num {
+  text-align: right;
+}
+
+/* Reduced motion: keep everything visible, drop transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
