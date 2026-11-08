@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Third-party skill files vendored for the design tooling; not application code.
+    ".claude/**",
   ]),
 ]);
 

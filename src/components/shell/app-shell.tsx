@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { NavLinks, MobileTabBar } from "./nav";
 import { Wordmark } from "./wordmark";
 import { DataBadge } from "./data-badge";
@@ -15,7 +15,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         </div>
         <nav aria-label="Primary" className="flex-1 px-3 py-4">
-          <NavLinks />
+          <Suspense fallback={null}>
+            <NavLinks />
+          </Suspense>
         </nav>
         <div className="px-5 py-4 border-t border-hairline">
           <DataBadge />
@@ -35,7 +37,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="mx-auto w-full max-w-[1320px] px-4 pb-24 pt-4 lg:px-8 lg:pb-12 lg:pt-6">{children}</main>
       </div>
 
-      <MobileTabBar />
+      <Suspense fallback={null}>
+        <MobileTabBar />
+      </Suspense>
     </div>
   );
 }

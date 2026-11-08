@@ -68,10 +68,18 @@ export function runLab(config: StrategyConfig, series: CandleSeries[], period: P
   return { config, period, result, benchmarks, regimes, validation, assessment, elapsedMs: t1 - t0 };
 }
 
-/** Default analysis period: the last two years of the available data. */
+/** Days of the most recent data held out of the default backtest period for paper trading. */
+export const HOLDOUT_DAYS = 90;
+
+/**
+ * Default analysis period: two years ending HOLDOUT_DAYS before the latest bar.
+ * The held-out tail is where paper trading runs, so a strategy is never
+ * paper-traded on bars it was tested on.
+ */
 export function defaultPeriod(series: CandleSeries[]): Period {
   const ref = series[0];
-  const end = ref.candles[ref.candles.length - 1].time;
+  const latest = ref.candles[ref.candles.length - 1].time;
+  const end = Math.max(ref.candles[0].time + 86_400_000, latest - HOLDOUT_DAYS * 86_400_000);
   const start = Math.max(ref.candles[0].time, end - 2 * 365 * 86_400_000);
   return { start, end };
 }

@@ -27,8 +27,11 @@ export function ComparePanel() {
   const [period, setPeriod] = useState<Period | null>(null);
   const { series, error, loading } = useCandles(["BTC", "ETH"], timeframe);
 
-  const dataRange = series ? { start: series[0].candles[0].time, end: series[0].candles[series[0].candles.length - 1].time } : null;
-  const effective = series ? (period ? { start: Math.max(dataRange!.start, period.start), end: Math.min(dataRange!.end, period.end) } : defaultPeriod(series)) : null;
+  const dataRange = useMemo(() => (series ? { start: series[0].candles[0].time, end: series[0].candles[series[0].candles.length - 1].time } : null), [series]);
+  const effective = useMemo<Period | null>(() => {
+    if (!series || !dataRange) return null;
+    return period ? { start: Math.max(dataRange.start, period.start), end: Math.min(dataRange.end, period.end) } : defaultPeriod(series);
+  }, [series, dataRange, period]);
 
   const runs = useMemo(() => {
     if (!series || !effective) return null;

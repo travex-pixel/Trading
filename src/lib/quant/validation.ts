@@ -100,7 +100,7 @@ export function tunableParams(params: StrategyParams): NumericParam[] {
         { key: "rebalanceBars", value: params.rebalanceBars, min: 1, max: 200, step: 1, integer: true },
       ];
     case "tsmom":
-      return [{ key: "lookback", value: params.lookback, min: 5, max: 400, step: 1, integer: true }];
+      return [{ key: "lookback", value: params.lookback, min: 5, max: 1000, step: 1, integer: true }];
     case "buy_and_hold":
     case "random_baseline":
       return [];

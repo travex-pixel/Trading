@@ -1,9 +1,8 @@
-import { PageHeader } from "@/components/ui/panel";
+import type { Metadata } from "next";
+import { CommandCentre } from "@/components/home/command-centre";
+
+export const metadata: Metadata = { title: "Command Centre · EdgeLab" };
 
 export default function HomePage() {
-  return (
-    <div>
-      <PageHeader title="Command Centre" description="Placeholder while the shell is verified." />
-    </div>
-  );
+  return <CommandCentre />;
 }

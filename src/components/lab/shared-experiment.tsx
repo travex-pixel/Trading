@@ -33,7 +33,7 @@ export function SharedExperiment({ snapshot }: { snapshot: Snapshot }) {
       ) : null}
       <ResultHero run={r} />
       <EquityPanel run={r} />
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <VerdictPanel run={r} />
         <Panel>
           <PanelHeader title="Metrics" />

@@ -21,7 +21,7 @@ import { getStore, selectExperiments, selectPortfolios, useRepository } from "@/
 import { newId } from "@/lib/store/local-store";
 import type { PaperPortfolio } from "@/lib/quant/paper";
 import { cn } from "@/lib/utils";
-import { StrategyForm, configForKind } from "./strategy-form";
+import { StrategyForm } from "./strategy-form";
 import { PeriodPicker } from "./period-picker";
 import { EquityPanel, MetricsTable, RegimeTable, ResultHero, SensitivityPanel, TradesTable, VerdictPanel, WalkForwardPanel, WarningsList } from "./results";
 import { AssistantPanel } from "./assistant-panel";
@@ -201,7 +201,7 @@ export function Workbench() {
             {tab === "overview" ? (
               <div className="space-y-5">
                 <EquityPanel run={run} />
-                <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                   <VerdictPanel run={run} />
                   <Panel>
                     <PanelHeader title="Metrics" description="Strategy against its benchmarks under identical costs." />
@@ -423,6 +423,7 @@ function PaperDialog({ run, latest, onClose }: { run: LabRun; latest: number; on
   const [capital, setCapital] = useState(run.config.initialCapital);
   const start = async () => {
     // Paper trading begins at the end of the backtest period, so what you tested is history and what follows is "forward".
+    // The Lab's default period holds out the most recent 90 days for exactly this purpose.
     const startedAt = Math.min(run.result.period.end, latest - 1);
     const portfolio: PaperPortfolio = {
       id: newId("pp"),
@@ -443,6 +444,11 @@ function PaperDialog({ run, latest, onClose }: { run: LabRun; latest: number; on
       <p className="text-sm text-ink-2 leading-5">
         A simulated portfolio will follow <span className="text-ink">{run.config.name}</span> forward from the end of your test period. Every position is simulated; no orders are placed anywhere.
       </p>
+      {latest - run.result.period.end < 86_400_000 ? (
+        <p className="mt-2 rounded-[var(--radius-md)] border border-warn/40 bg-warn-dim px-3 py-2 text-xs text-warn">
+          Your test period runs to the end of the available data, so in demo mode this portfolio will have nothing to trade forward. Shorten the period (the default holds out the last 90 days) to leave room.
+        </p>
+      ) : null}
       <div className="mt-4">
         <Field label="Virtual capital" htmlFor="cap">
           <input id="cap" type="number" min={100} max={10_000_000} step={100} value={capital} onChange={(e) => setCapital(Math.max(100, Number(e.target.value) || 100))} className="num h-9 w-full rounded-[var(--radius-md)] border border-border bg-raised px-2.5 text-sm text-ink" />

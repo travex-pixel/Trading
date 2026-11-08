@@ -110,7 +110,7 @@ export const strategyParamsSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("tsmom"),
     /** Long when the trailing return over this many bars is positive, otherwise cash. */
-    lookback: period(5, 400),
+    lookback: period(5, 1000),
   }),
   z.object({
     kind: z.literal("random_baseline"),

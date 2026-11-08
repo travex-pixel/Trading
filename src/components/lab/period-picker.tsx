@@ -2,6 +2,7 @@
 
 import { Field, Input, Segmented } from "@/components/ui/field";
 import type { Period } from "@/lib/quant/validation";
+import { HOLDOUT_DAYS } from "@/lib/lab/run";
 
 export type PeriodPreset = "6m" | "1y" | "2y" | "all" | "custom";
 
@@ -9,11 +10,14 @@ function toInputDate(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
+/** Presets end HOLDOUT_DAYS before the latest bar so the most recent data stays unseen for paper trading; "All" uses everything. */
 export function presetPeriod(preset: Exclude<PeriodPreset, "custom">, dataStart: number, dataEnd: number): Period {
   const day = 86_400_000;
-  const months = preset === "6m" ? 6 : preset === "1y" ? 12 : preset === "2y" ? 24 : null;
-  const start = months === null ? dataStart : Math.max(dataStart, dataEnd - months * 30.44 * day);
-  return { start, end: dataEnd };
+  if (preset === "all") return { start: dataStart, end: dataEnd };
+  const end = Math.max(dataStart + day, dataEnd - HOLDOUT_DAYS * day);
+  const months = preset === "6m" ? 6 : preset === "1y" ? 12 : 24;
+  const start = Math.max(dataStart, end - months * 30.44 * day);
+  return { start, end };
 }
 
 export function detectPreset(period: Period, dataStart: number, dataEnd: number): PeriodPreset {
@@ -40,7 +44,7 @@ export function PeriodPicker({
   const preset = detectPreset(period, dataStart, dataEnd);
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <Field label="Period">
+      <Field label="Period" hint={compact ? undefined : `Presets stop ${HOLDOUT_DAYS} days before the latest bar, keeping recent data unseen for paper trading.`}>
         <Segmented<PeriodPreset>
           label="Period"
           size={compact ? "sm" : "md"}

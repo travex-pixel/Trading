@@ -129,12 +129,14 @@ export function PriceChart({
     chartRef.current = chart;
     candleRef.current = candleSeries;
     markersRef.current = createSeriesMarkers(candleSeries, []);
+    const lines = lineRefs.current;
+    const hists = histRefs.current;
     return () => {
       chart.remove();
       chartRef.current = null;
       candleRef.current = null;
-      lineRefs.current.clear();
-      histRefs.current.clear();
+      lines.clear();
+      hists.clear();
       markersRef.current = null;
       renderedCount.current = 0;
     };
@@ -187,6 +189,13 @@ export function PriceChart({
       const v = indicators[key]?.[i];
       return v === null || v === undefined ? { time: ts(candles[i].time) } : { time: ts(candles[i].time), value: v };
     };
+
+    // Price precision follows the asset's price level so axis labels stay compact.
+    if (renderedCount.current === 0 && count > 0) {
+      const level = candles[Math.min(count, candles.length) - 1].close;
+      const precision = level >= 1000 ? 0 : level >= 10 ? 2 : 4;
+      candleSeries.applyOptions({ priceFormat: { type: "price", precision, minMove: Math.pow(10, -precision) } });
+    }
 
     const prev = renderedCount.current;
     if (count >= prev && prev > 0 && count - prev <= 50) {

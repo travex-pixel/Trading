@@ -5,7 +5,7 @@
  * to see side by side. Lives in localStorage, validated on read.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { z } from "zod";
 import { strategyConfigSchema, type StrategyConfig } from "@/lib/strategies/schema";
 import type { BacktestResult } from "@/lib/quant/types";
@@ -16,15 +16,31 @@ export const MAX_COMPARE = 5;
 const basketSchema = z.array(z.object({ id: z.string().max(64), config: strategyConfigSchema })).max(MAX_COMPARE);
 export type BasketItem = z.infer<typeof basketSchema>[number];
 
+const EMPTY: BasketItem[] = [];
+let cachedRaw: string | null = null;
+let cachedItems: BasketItem[] = EMPTY;
+
+/** Read the basket, returning a referentially stable array while storage is unchanged. */
 function read(): BasketItem[] {
   try {
     const raw = typeof window !== "undefined" ? window.localStorage.getItem(KEY) : null;
-    if (!raw) return [];
+    if (raw === cachedRaw) return cachedItems;
+    cachedRaw = raw;
+    if (!raw) return (cachedItems = EMPTY);
     const parsed = basketSchema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : [];
+    return (cachedItems = parsed.success ? parsed.data : EMPTY);
   } catch {
-    return [];
+    return EMPTY;
   }
+}
+
+function subscribe(onChange: () => void): () => void {
+  window.addEventListener("edgelab:compare", onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener("edgelab:compare", onChange);
+    window.removeEventListener("storage", onChange);
+  };
 }
 
 function write(items: BasketItem[]): void {
@@ -37,17 +53,8 @@ function write(items: BasketItem[]): void {
 }
 
 export function useCompareBasket() {
-  const [items, setItems] = useState<BasketItem[] | null>(null);
-  useEffect(() => {
-    setItems(read());
-    const onChange = () => setItems(read());
-    window.addEventListener("edgelab:compare", onChange);
-    window.addEventListener("storage", onChange);
-    return () => {
-      window.removeEventListener("edgelab:compare", onChange);
-      window.removeEventListener("storage", onChange);
-    };
-  }, []);
+  // null on the server snapshot so the first client render matches the server HTML.
+  const items = useSyncExternalStore(subscribe, read, () => null);
   const add = useCallback((config: StrategyConfig) => {
     const current = read();
     const id = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;

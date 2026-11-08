@@ -44,7 +44,11 @@ describe("rsi", () => {
   });
   it("stays within 0..100", () => {
     const prices = Array.from({ length: 200 }, (_, i) => 100 + Math.sin(i / 5) * 10 + (i % 7));
-    for (const v of rsi(prices, 14)) if (v !== null) expect(v).toBeGreaterThanOrEqual(0), expect(v).toBeLessThanOrEqual(100);
+    for (const v of rsi(prices, 14)) {
+      if (v === null) continue;
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(100);
+    }
   });
 });
 

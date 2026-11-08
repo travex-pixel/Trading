@@ -53,22 +53,29 @@ export interface CandlesState {
   loading: boolean;
 }
 
+interface Loaded {
+  key: string;
+  series: CandleSeries[] | null;
+  error: string | null;
+}
+
 export function useCandles(assets: AssetId[], timeframe: Timeframe): CandlesState {
   const key = `${[...assets].sort().join(",")}:${timeframe}`;
-  const [state, setState] = useState<CandlesState>({ series: null, error: null, loading: true });
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
   useEffect(() => {
     let cancelled = false;
-    setState((s) => ({ ...s, loading: true, error: null }));
     fetchCandles(key.split(":")[0].split(",") as AssetId[], key.split(":")[1] as Timeframe)
       .then((series) => {
-        if (!cancelled) setState({ series, error: null, loading: false });
+        if (!cancelled) setLoaded({ key, series, error: null });
       })
       .catch((err: Error) => {
-        if (!cancelled) setState({ series: null, error: err.message, loading: false });
+        if (!cancelled) setLoaded({ key, series: null, error: err.message });
       });
     return () => {
       cancelled = true;
     };
   }, [key]);
-  return state;
+  // While a new key is loading, keep showing the previous series (no skeleton flash) but report loading.
+  const current = loaded && loaded.key === key ? loaded : null;
+  return { series: current?.series ?? loaded?.series ?? null, error: current?.error ?? null, loading: current === null };
 }

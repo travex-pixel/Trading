@@ -26,13 +26,13 @@ export function buyAndHoldConfig(config: StrategyConfig): StrategyConfig {
 }
 
 export function momentumBenchmarkConfig(config: StrategyConfig): StrategyConfig {
-  // Roughly a 90-day lookback at each timeframe.
-  const lookback = config.timeframe === "1d" ? 90 : config.timeframe === "4h" ? 400 : 400;
+  // A 90-day lookback at each timeframe (capped by the schema at 1000 bars).
+  const lookback = config.timeframe === "1d" ? 90 : config.timeframe === "4h" ? 540 : 1000;
   return {
     ...config,
     name: "Simple momentum",
     assets: [config.assets[0]],
-    params: { kind: "tsmom", lookback: Math.min(400, lookback) },
+    params: { kind: "tsmom", lookback },
     risk: { stopLossPct: null, takeProfitPct: null, sizing: { mode: "fixed_fraction", fraction: 1 }, maxPositions: 1 },
   };
 }

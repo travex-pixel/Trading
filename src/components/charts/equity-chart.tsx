@@ -268,7 +268,7 @@ export function EquityChart({
         })}
 
         {/* Drawdown dimension line: bracket from peak to trough with ticks and label */}
-        {drawdown && !compact ? <DrawdownDimension dd={drawdown} x={x} y={y} mode={mode} base={prepared[0]?.points[0]?.equity ?? 1} /> : null}
+        {drawdown && !compact ? <DrawdownDimension dd={drawdown} x={x} y={y} mode={mode} base={prepared[0]?.points[0]?.equity ?? 1} plotRight={margin.left + plotW} /> : null}
 
         {/* Hover crosshair */}
         {hoverX !== null ? (
@@ -312,29 +312,35 @@ function DrawdownDimension({
   y,
   mode,
   base,
+  plotRight,
 }: {
   dd: DrawdownAnnotation;
   x: (t: number) => number;
   y: (v: number) => number;
   mode: "value" | "percent";
   base: number;
+  plotRight: number;
 }) {
   const toV = (e: number) => (mode === "percent" ? (base > 0 ? (e / base - 1) * 100 : 0) : e);
   const x0 = x(dd.peakTime);
   const x1 = x(dd.troughTime);
   const yTop = y(toV(dd.peakEquity));
   const yBot = y(toV(dd.troughEquity));
-  const lx = Math.max(x0, x1) + 10;
+  // Place the dimension line to the right of the span unless it would run into the axis gutter; then to the left of the peak.
+  const labelWidth = dd.label.length * 6.2 + 14;
+  const rightSide = Math.max(x0, x1) + 10 + labelWidth < plotRight;
+  const lx = rightSide ? Math.max(x0, x1) + 10 : Math.min(x0, x1) - 10;
+  const ext = rightSide ? lx + 4 : lx - 4;
   return (
     <g aria-label={`Maximum drawdown ${dd.label}`}>
       {/* Extension lines from peak and trough */}
-      <line x1={x0} x2={lx + 4} y1={yTop} y2={yTop} stroke="var(--down)" strokeWidth="1" opacity="0.7" />
-      <line x1={x1} x2={lx + 4} y1={yBot} y2={yBot} stroke="var(--down)" strokeWidth="1" opacity="0.7" />
+      <line x1={x0} x2={ext} y1={yTop} y2={yTop} stroke="var(--down)" strokeWidth="1" opacity="0.7" />
+      <line x1={x1} x2={ext} y1={yBot} y2={yBot} stroke="var(--down)" strokeWidth="1" opacity="0.7" />
       {/* Dimension line with ticks */}
       <line x1={lx} x2={lx} y1={yTop} y2={yBot} stroke="var(--down)" strokeWidth="1" />
       <line x1={lx - 3} x2={lx + 3} y1={yTop} y2={yTop} stroke="var(--down)" strokeWidth="1" />
       <line x1={lx - 3} x2={lx + 3} y1={yBot} y2={yBot} stroke="var(--down)" strokeWidth="1" />
-      <text x={lx + 6} y={(yTop + yBot) / 2} dy="0.32em" fontSize="10" fill="var(--down)" className="num">
+      <text x={rightSide ? lx + 6 : lx - 6} y={(yTop + yBot) / 2} dy="0.32em" fontSize="10" fill="var(--down)" textAnchor={rightSide ? "start" : "end"} className="num">
         {dd.label}
       </text>
     </g>

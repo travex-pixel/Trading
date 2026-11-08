@@ -19,8 +19,14 @@ export function useRepository<T extends { id: string }>(select: (s: Store) => Re
     setItems(await repo.list());
   }, [repo]);
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let active = true;
+    repo.list().then((list) => {
+      if (active) setItems(list);
+    });
+    return () => {
+      active = false;
+    };
+  }, [repo]);
   const put = useCallback(
     async (item: T) => {
       await repo.put(item);

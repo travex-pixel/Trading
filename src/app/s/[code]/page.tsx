@@ -9,7 +9,16 @@ import { decodeSnapshot } from "@/lib/store/snapshot";
 
 export const metadata: Metadata = { title: "Shared experiment" };
 
-export default async function SharePage({ params }: PageProps<"/s/[code]">) {
+/** `params` is runtime data under Cache Components, so it is read inside a Suspense boundary. */
+export default function SharePage({ params }: PageProps<"/s/[code]">) {
+  return (
+    <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+      <Resolved params={params} />
+    </Suspense>
+  );
+}
+
+async function Resolved({ params }: { params: PageProps<"/s/[code]">["params"] }) {
   const { code } = await params;
   const decoded = decodeSnapshot(code);
   if (!decoded.ok) {
@@ -39,9 +48,7 @@ export default async function SharePage({ params }: PageProps<"/s/[code]">) {
           </Button>
         }
       />
-      <Suspense fallback={<Skeleton className="h-96 w-full" />}>
-        <SharedExperiment snapshot={decoded.snapshot} />
-      </Suspense>
+      <SharedExperiment snapshot={decoded.snapshot} />
     </div>
   );
 }

@@ -14,7 +14,12 @@ import type { PaperPortfolio } from "@/lib/quant/paper";
 const STORAGE_VERSION = 1;
 const PREFIX = `edgelab:v${STORAGE_VERSION}:`;
 
-const metricsSchema = z.record(z.string(), z.union([z.number(), z.null()]));
+// Metrics may legitimately hold Infinity (e.g. profit factor with no losing
+// trades), which z.number() rejects, so accept any number or null.
+const metricsSchema = z.record(
+  z.string(),
+  z.custom<number | null>((v) => v === null || typeof v === "number", { message: "Expected a number or null" }),
+);
 
 const experimentSchema = z.object({
   id: z.string().min(1).max(64),
