@@ -105,10 +105,10 @@ function MarketStrip({ market, regime, loading, source }: { market: ReturnType<t
           <span className="font-semibold text-ink">ASX</span>
           <span className="text-ink-3">{MARKETS.ASX.description.split(".")[0]}</span>
         </div>
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
           {status ? (
             <>
-              <span className={cn("inline-flex items-center gap-1.5 font-medium", status.state === "open" ? "text-up" : "text-ink-2")}>
+              <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap font-medium", status.state === "open" ? "text-up" : "text-ink-2")}>
                 <span aria-hidden className={cn("size-1.5 rounded-full", status.state === "open" ? "bg-up" : "bg-ink-3")} />
                 {status.state === "open" ? "Open" : status.state === "closed" ? `Closed · ${status.reason === "weekend" ? "weekend" : status.reason === "holiday" ? "holiday" : status.reason === "pre_market" ? "pre-market" : "after hours"}` : "Open 24/7"}
               </span>
@@ -172,7 +172,7 @@ function MarketStrip({ market, regime, loading, source }: { market: ReturnType<t
               {market?.[0] ? fmtDate(market[0].lastTime) : ""}
             </span>
           ) : null}
-          <Link href="/markets" className="inline-flex items-center gap-1 text-ink-2 hover:text-ink">
+          <Link href="/markets" className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-ink-2 hover:text-ink">
             All markets <ArrowRight className="size-3" aria-hidden />
           </Link>
         </div>

@@ -72,7 +72,7 @@ export function NumberField({
           step={step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="h-1.5 flex-1 cursor-pointer"
+          className="h-1.5 w-0 min-w-12 flex-1 cursor-pointer"
           aria-label={typeof label === "string" ? label : undefined}
         />
         <div className="flex w-24 shrink-0 items-center">
@@ -87,10 +87,10 @@ export function NumberField({
               const v = Number(e.target.value);
               if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, v)));
             }}
-            className={cn(control, "num h-8 px-2 text-xs text-right", unit ? "rounded-r-none" : "")}
+            className={cn(control, "num h-8 min-w-0 flex-1 px-2 text-xs text-right", unit ? "rounded-r-none" : "")}
             aria-label={`${typeof label === "string" ? label : "value"} (exact)`}
           />
-          {unit ? <span className="flex h-8 items-center rounded-r-[var(--radius-md)] border border-l-0 border-border bg-raised px-1.5 text-2xs text-ink-3">{unit}</span> : null}
+          {unit ? <span className="flex h-8 shrink-0 items-center rounded-r-[var(--radius-md)] border border-l-0 border-border bg-raised px-1.5 text-2xs text-ink-3">{unit}</span> : null}
         </div>
       </div>
     </Field>

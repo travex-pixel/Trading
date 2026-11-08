@@ -345,6 +345,8 @@ function DrawdownDimension({
       <line x1={lx} x2={lx} y1={yTop} y2={yBot} stroke="var(--down)" strokeWidth="1" />
       <line x1={lx - 3} x2={lx + 3} y1={yTop} y2={yTop} stroke="var(--down)" strokeWidth="1" />
       <line x1={lx - 3} x2={lx + 3} y1={yBot} y2={yBot} stroke="var(--down)" strokeWidth="1" />
+      {/* A panel-coloured backing keeps the label legible where it crosses the curves. */}
+      <rect x={rightSide ? lx + 4 : lx - 4 - (labelWidth - 10)} y={(yTop + yBot) / 2 - 7} width={labelWidth - 10} height={14} rx="2" fill="var(--panel)" opacity="0.85" />
       <text x={rightSide ? lx + 6 : lx - 6} y={(yTop + yBot) / 2} dy="0.32em" fontSize="10" fill="var(--down)" textAnchor={rightSide ? "start" : "end"} className="num">
         {dd.label}
       </text>
