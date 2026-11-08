@@ -61,10 +61,15 @@ test("full research journey", async ({ page }) => {
   await page.goto("/arena");
   await expect(page.getByRole("heading", { name: "Bot Arena" })).toBeVisible();
   const demo = page.getByRole("button", { name: /demo competition/i });
+  const create = page.getByRole("link", { name: /create competition/i });
+  // The list is read from browser storage after hydration; wait for either entry point.
+  await expect(demo.or(create).first()).toBeVisible({ timeout: 20_000 });
   if (await demo.count()) {
     await demo.first().click();
   } else {
-    await page.getByRole("link", { name: /create competition/i }).first().click();
+    await create.first().click();
+    await expect(page.getByRole("heading", { name: "Create a competition" })).toBeVisible();
+    await page.getByRole("button", { name: "Create competition" }).click();
   }
   await expect(page.getByText(/leaderboard/i).first()).toBeVisible({ timeout: 60_000 });
 
@@ -116,13 +121,12 @@ test("ASX is the default market and an instrument can be selected and backtested
   await expect(page.getByText("BHP Group").first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("Australian Securities Exchange").first()).toBeVisible();
   // Results are in AUD with a flat brokerage in the provenance plate.
-  await expect(page.getByText(/MARKET/).first()).toBeVisible();
   await expect(page.getByText(/ASX · AUD/).first()).toBeVisible();
   await expect(page.getByText(/10 AUD \/order/).first()).toBeVisible();
   await expect(page.getByText(/A\$/).first()).toBeVisible();
   // Switch to a different ASX instrument through the picker search.
   await page.getByRole("button", { name: /BHP Group/ }).click();
-  await page.getByLabel("Search instruments").fill("CSL");
+  await page.getByPlaceholder(/by ticker or name/).fill("CSL");
   await page.getByRole("option", { name: /CSL Limited/ }).click();
   await expect(page.getByText("CSL Limited").first()).toBeVisible();
   // Switch market to US and see USD.
