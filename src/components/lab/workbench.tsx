@@ -24,8 +24,9 @@ import { cn } from "@/lib/utils";
 import { StrategyForm, configForKind } from "./strategy-form";
 import { PeriodPicker } from "./period-picker";
 import { EquityPanel, MetricsTable, RegimeTable, ResultHero, SensitivityPanel, TradesTable, VerdictPanel, WalkForwardPanel, WarningsList } from "./results";
+import { AssistantPanel } from "./assistant-panel";
 
-type Tab = "overview" | "validation" | "trades";
+type Tab = "overview" | "validation" | "assistant" | "trades";
 
 export function Workbench() {
   const params = useSearchParams();
@@ -180,6 +181,7 @@ export function Workbench() {
                 [
                   ["overview", "Overview"],
                   ["validation", "Validation"],
+                  ["assistant", "Assistant"],
                   ["trades", `Trades (${run.result.trades.length})`],
                 ] as const
               ).map(([id, label]) => (
@@ -282,6 +284,17 @@ export function Workbench() {
                   <RegimeTable regimes={run.regimes} />
                 </Panel>
               </div>
+            ) : null}
+
+            {tab === "assistant" ? (
+              <AssistantPanel
+                run={run}
+                onApply={(c) => {
+                  setConfig(c);
+                  validation.reset();
+                  setTab("overview");
+                }}
+              />
             ) : null}
 
             {tab === "trades" ? (
@@ -457,7 +470,7 @@ export function Dialog({ title, onClose, children }: { title: string; onClose: (
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby="dlg-title" className="w-full max-w-lg rounded-t-[var(--radius-md)] border border-border bg-panel p-5 shadow-[0_20px_60px_rgba(0,0,0,0.5)] sm:rounded-[var(--radius-md)]" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-labelledby="dlg-title" className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[var(--radius-md)] border border-border bg-panel p-5 shadow-[0_20px_60px_rgba(0,0,0,0.5)] sm:rounded-[var(--radius-md)]" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 id="dlg-title" className="text-base font-semibold text-ink">
             {title}
