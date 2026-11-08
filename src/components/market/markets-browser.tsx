@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight, MagnifyingGlass } from "@phosphor-icons/react";
 import { Sparkline } from "@/components/charts/sparkline";
 import { Badge } from "@/components/ui/badge";
 import { ErrorState, Skeleton } from "@/components/ui/empty";
@@ -130,7 +130,7 @@ export function MarketsBrowser({ initialMarket = DEFAULT_MARKET }: { initialMark
           description={`${instruments.length} supported · ${spec.currency}`}
           aside={
             <label className="flex h-8 items-center gap-2 rounded-[var(--radius-md)] border border-border bg-raised px-2.5">
-              <Search className="size-3.5 text-ink-3" aria-hidden />
+              <MagnifyingGlass className="size-3.5 text-ink-3" aria-hidden />
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter" aria-label="Filter instruments" className="w-28 bg-transparent text-xs text-ink placeholder:text-ink-4 focus:outline-none sm:w-40" inputMode="search" />
             </label>
           }

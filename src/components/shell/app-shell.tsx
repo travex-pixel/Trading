@@ -34,7 +34,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <div className="min-w-0">
-        <main className="mx-auto w-full max-w-[1320px] px-4 pb-24 pt-4 lg:px-8 lg:pb-12 lg:pt-6">{children}</main>
+        <main className="mx-auto w-full max-w-[1320px] px-4 pb-28 pt-4 lg:px-8 lg:pb-12 lg:pt-6">{children}</main>
       </div>
 
       <Suspense fallback={null}>

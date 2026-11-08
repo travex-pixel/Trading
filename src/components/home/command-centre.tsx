@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRight, Plus } from "@phosphor-icons/react";
 import { EquityChart } from "@/components/charts/equity-chart";
 import { Sparkline } from "@/components/charts/sparkline";
 import { Badge, SimulatedBadge } from "@/components/ui/badge";
@@ -52,7 +52,7 @@ export function CommandCentre() {
                 Show guide
               </button>
             ) : null}
-            <Button variant="primary" className="hidden lg:inline-flex" asChild>
+            <Button variant="primary" size="lg" className="hidden lg:inline-flex" asChild>
               <Link href="/lab/build">
                 <Plus className="size-4" aria-hidden /> New experiment
               </Link>
@@ -84,7 +84,7 @@ export function CommandCentre() {
       </div>
 
       {/* Mobile primary action, above the tab bar. */}
-      <Button variant="primary" size="lg" className="fixed right-4 z-20 shadow-[0_8px_24px_rgba(0,0,0,0.45)] lg:hidden" style={{ bottom: "calc(72px + env(safe-area-inset-bottom))" }} asChild>
+      <Button variant="primary" size="lg" className="fixed right-4 z-20 shadow-[0_8px_24px_rgba(0,0,0,0.45)] lg:hidden" style={{ bottom: "calc(80px + env(safe-area-inset-bottom))" }} asChild>
         <Link href="/lab/build">
           <Plus className="size-4" aria-hidden /> New experiment
         </Link>

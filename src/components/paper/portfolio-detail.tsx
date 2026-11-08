@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArrowLeft, Square, Trash2 } from "lucide-react";
+import { ArrowLeft, Square, Trash } from "@phosphor-icons/react";
 import { EquityChart } from "@/components/charts/equity-chart";
 import { Badge, SimulatedBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,7 +78,7 @@ export function PortfolioDetail({
             </Button>
           ) : null}
           <Button variant="ghost" size="sm" onClick={del} aria-label="Delete portfolio">
-            <Trash2 className="size-3.5" aria-hidden />
+            <Trash className="size-3.5" aria-hidden />
           </Button>
         </div>
       </div>

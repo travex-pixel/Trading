@@ -1,12 +1,13 @@
-import { AlertTriangle, CheckCircle2, CircleHelp, ShieldCheck, type LucideIcon } from "lucide-react";
+import { Warning, CheckCircle, Question, ShieldCheck } from "@phosphor-icons/react/ssr";
+import type { Icon } from "@phosphor-icons/react";
 import type { Finding, Verdict } from "@/lib/quant/validation";
 import { VERDICT_LABELS } from "@/lib/quant/validation";
 import { cn } from "@/lib/utils";
 
-const VERDICT_STYLE: Record<Verdict, { icon: LucideIcon; cls: string }> = {
-  unproven: { icon: CircleHelp, cls: "border-down/40 text-down bg-down-dim" },
-  fragile: { icon: AlertTriangle, cls: "border-warn/40 text-warn bg-warn-dim" },
-  promising: { icon: CheckCircle2, cls: "border-annot/40 text-annot bg-annot-dim" },
+const VERDICT_STYLE: Record<Verdict, { icon: Icon; cls: string }> = {
+  unproven: { icon: Question, cls: "border-down/40 text-down bg-down-dim" },
+  fragile: { icon: Warning, cls: "border-warn/40 text-warn bg-warn-dim" },
+  promising: { icon: CheckCircle, cls: "border-annot/40 text-annot bg-annot-dim" },
   robust: { icon: ShieldCheck, cls: "border-up/40 text-up bg-up-dim" },
 };
 
@@ -14,7 +15,7 @@ export function VerdictBadge({ verdict, className, size = "md" }: { verdict: Ver
   const { icon: Icon, cls } = VERDICT_STYLE[verdict];
   return (
     <span className={cn("inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border font-medium", size === "sm" ? "px-1.5 py-px text-2xs" : "px-2 py-0.5 text-xs", cls, className)}>
-      <Icon className={size === "sm" ? "size-3" : "size-3.5"} strokeWidth={2} aria-hidden />
+      <Icon className={size === "sm" ? "size-3" : "size-3.5"} aria-hidden />
       {VERDICT_LABELS[verdict]}
     </span>
   );

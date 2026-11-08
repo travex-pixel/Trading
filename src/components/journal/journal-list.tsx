@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash } from "@phosphor-icons/react";
 import { Sparkline } from "@/components/charts/sparkline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -127,7 +127,7 @@ export function JournalList() {
                     <Link href={`/journal/${e.id}`}>Open</Link>
                   </Button>
                   <Button size="sm" variant="ghost" aria-label={`Delete ${e.name}`} onClick={() => onDelete(l.versions.map((v) => v.id), e.name, l.versions.length)}>
-                    <Trash2 className="size-3.5" aria-hidden />
+                    <Trash className="size-3.5" aria-hidden />
                   </Button>
                 </div>
               </li>

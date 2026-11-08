@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
-import { Check, FlaskConical, Link2, Trash2 } from "lucide-react";
+import { Check, Flask, LinkSimple, Trash } from "@phosphor-icons/react";
 import { EquityChart, type EquitySeries } from "@/components/charts/equity-chart";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -102,14 +102,14 @@ function Detail({ experiment: e, versions, onSaved, onDelete }: { experiment: Ex
           <>
             <Button variant="primary" asChild>
               <Link href={snapshot ? `/lab/build?s=${snapshot}` : "/lab/build"}>
-                <FlaskConical className="size-4" aria-hidden /> Open in Lab
+                <Flask className="size-4" aria-hidden /> Open in Lab
               </Link>
             </Button>
             <Button onClick={copy} disabled={!snapshot}>
-              {copied ? <Check className="size-4 text-up" aria-hidden /> : <Link2 className="size-4" aria-hidden />} {copied ? "Link copied" : "Share"}
+              {copied ? <Check className="size-4 text-up" aria-hidden /> : <LinkSimple className="size-4" aria-hidden />} {copied ? "Link copied" : "Share"}
             </Button>
             <Button variant="ghost" onClick={onDelete} aria-label="Delete this version">
-              <Trash2 className="size-4" aria-hidden />
+              <Trash className="size-4" aria-hidden />
             </Button>
           </>
         }

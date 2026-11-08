@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronFirst, ChevronLast, Pause, Play, SkipBack, SkipForward, StepBack, StepForward } from "lucide-react";
+import { CaretLineLeft, CaretLineRight, Pause, Play, SkipBack, SkipForward, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { EquityChart } from "@/components/charts/equity-chart";
 import type { PriceLineSpec, PriceMarker } from "@/components/charts/price-chart";
 import { InstrumentPicker } from "@/components/market/instrument-picker";
@@ -298,13 +298,13 @@ function ReplayPlayer({ result, candles, display, events, config }: { result: Ba
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-1">
                 <IconButton label="Jump to start" onClick={() => setCursor(0)}>
-                  <ChevronFirst className="size-4" aria-hidden />
+                  <CaretLineLeft className="size-4" aria-hidden />
                 </IconButton>
                 <IconButton label="Previous trade event (Shift+←)" onClick={jumpPrev}>
                   <SkipBack className="size-4" aria-hidden />
                 </IconButton>
                 <IconButton label="Step back one bar (←)" onClick={() => step(-1)}>
-                  <StepBack className="size-4" aria-hidden />
+                  <CaretLeft className="size-4" aria-hidden />
                 </IconButton>
                 <button
                   type="button"
@@ -317,13 +317,13 @@ function ReplayPlayer({ result, candles, display, events, config }: { result: Ba
                   <span className="hidden sm:inline">{playing ? "Pause" : cursor >= last ? "Replay ended" : "Play"}</span>
                 </button>
                 <IconButton label="Step forward one bar (→)" onClick={() => step(1)}>
-                  <StepForward className="size-4" aria-hidden />
+                  <CaretRight className="size-4" aria-hidden />
                 </IconButton>
                 <IconButton label="Next trade event (Shift+→)" onClick={jumpNext}>
                   <SkipForward className="size-4" aria-hidden />
                 </IconButton>
                 <IconButton label="Jump to end" onClick={() => setCursor(last)}>
-                  <ChevronLast className="size-4" aria-hidden />
+                  <CaretLineRight className="size-4" aria-hidden />
                 </IconButton>
               </div>
               <div role="radiogroup" aria-label="Playback speed" className="inline-flex h-11 items-center rounded-[var(--radius-md)] border border-border bg-raised p-0.5">
@@ -334,7 +334,7 @@ function ReplayPlayer({ result, candles, display, events, config }: { result: Ba
                     role="radio"
                     aria-checked={speed === s}
                     onClick={() => setSpeed(s)}
-                    className={cn("num h-full min-w-11 rounded-[3px] px-2 text-xs", speed === s ? "bg-ink text-ground" : "text-ink-2 hover:text-ink")}
+                    className={cn("num h-full min-w-11 rounded-[calc(var(--radius-sm)-2px)] px-2 text-xs", speed === s ? "bg-ink text-ground" : "text-ink-2 hover:text-ink")}
                   >
                     {s}×
                   </button>
@@ -433,7 +433,7 @@ function ReplayPlayer({ result, candles, display, events, config }: { result: Ba
             <ol ref={eventsRef} className="max-h-[360px] divide-y divide-hairline overflow-y-auto lg:max-h-[520px]">
               {visibleEvents.map((e) => (
                 <li key={`${e.n}`} className={cn("flex gap-3 px-4 py-2.5", e.time === frame.time ? "bg-annot-dim" : "")}>
-                  <span className={cn("num mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-[3px] text-2xs", e.kind === "entry" ? "bg-up-dim text-up" : "bg-down-dim text-down")} aria-hidden>
+                  <span className={cn("num mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-2xs", e.kind === "entry" ? "bg-up-dim text-up" : "bg-down-dim text-down")} aria-hidden>
                     {e.n}
                   </span>
                   <div className="min-w-0">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { X } from "@phosphor-icons/react";
 import { EquityChart, type EquitySeries } from "@/components/charts/equity-chart";
 import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/empty";
@@ -108,7 +108,7 @@ export function ComparePanel() {
                 <span className="block text-xs font-medium text-ink-2">Timeframe</span>
                 <div className="mt-1.5 inline-flex rounded-[var(--radius-md)] border border-border bg-raised p-0.5" role="radiogroup" aria-label="Timeframe">
                   {(["1h", "4h", "1d"] as const).map((t) => (
-                    <button key={t} type="button" role="radio" aria-checked={timeframe === t} onClick={() => setTimeframe(t)} className={`h-6 rounded-[3px] px-2 text-2xs font-medium ${timeframe === t ? "bg-ink text-ground" : "text-ink-2"}`}>
+                    <button key={t} type="button" role="radio" aria-checked={timeframe === t} onClick={() => setTimeframe(t)} className={`h-7 rounded-[calc(var(--radius-sm)-2px)] px-2.5 text-2xs font-medium ${timeframe === t ? "bg-ink text-ground" : "text-ink-2"}`}>
                       {t}
                     </button>
                   ))}

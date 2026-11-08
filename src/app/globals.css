@@ -40,8 +40,9 @@
   --series-5: #d55181;
   --series-muted: #6b6a66;
 
-  --radius-sm: 3px;
-  --radius-md: 5px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 }
 
 @theme inline {
@@ -74,8 +75,9 @@
   --font-sans: var(--font-schibsted), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-sometype), ui-monospace, "SF Mono", Menlo, monospace;
 
-  --radius-sm: 3px;
-  --radius-md: 5px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 
   --text-2xs: 0.6875rem; /* 11px */
   --text-2xs--line-height: 1rem;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkle } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/empty";
@@ -91,7 +91,7 @@ export function AssistantPanel({ run, onApply }: { run: LabRun; onApply: (config
         }
         aside={
           <Button size="sm" variant={review ? "secondary" : "primary"} onClick={request} disabled={status === "loading"}>
-            <Sparkles className="size-3.5" aria-hidden />
+            <Sparkle className="size-3.5" aria-hidden />
             {status === "loading" ? "Reviewing…" : review ? "Review again" : "Review this result"}
           </Button>
         }

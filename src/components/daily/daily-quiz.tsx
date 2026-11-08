@@ -14,7 +14,14 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { ArrowRight, Check, Flame, RotateCcw, Share2, X } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  Fire,
+  ArrowCounterClockwise,
+  ShareNetwork,
+  X,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { ErrorState, Skeleton } from "@/components/ui/empty";
 import { Panel, PanelBody } from "@/components/ui/panel";
@@ -312,7 +319,7 @@ function Intro({
 function StreakBadge({ streak }: { streak: number }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-warn/40 bg-warn-dim px-2 py-0.5 text-xs font-medium text-warn">
-      <Flame className="size-3.5" aria-hidden /> {streak}-day streak
+      <Fire className="size-3.5" aria-hidden /> {streak}-day streak
     </span>
   );
 }
@@ -496,7 +503,7 @@ function Choice({
       onClick={onPick}
       aria-pressed={chosen}
       className={cn(
-        "flex min-h-11 items-center justify-between gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-left text-sm transition-colors duration-150",
+        "flex min-h-12 items-center justify-between gap-2 rounded-[var(--radius-md)] border px-3.5 py-2 text-left text-sm transition-[background-color,border-color,transform] duration-150 active:scale-[0.98]",
         state === "idle" &&
           "border-border bg-raised text-ink hover:border-border-strong hover:bg-hover active:bg-hover",
         state === "correct" && "border-up/60 bg-up-dim text-ink",
@@ -710,7 +717,7 @@ function Result({
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button variant="primary" size="lg" onClick={share}>
-            <Share2 className="size-4" aria-hidden />{" "}
+            <ShareNetwork className="size-4" aria-hidden />{" "}
             {shared === "copied"
               ? "Copied to clipboard"
               : shared === "shared"
@@ -737,8 +744,8 @@ function Result({
             onClick={onReplay}
             className="inline-flex items-center gap-1 hover:text-ink"
           >
-            <RotateCcw className="size-3.5" aria-hidden /> Replay today
-            (practice, not scored)
+            <ArrowCounterClockwise className="size-3.5" aria-hidden /> Replay
+            today (practice, not scored)
           </button>
         </div>
       </PanelBody>
@@ -819,7 +826,7 @@ export function DailyTeaser() {
           </span>
           {streak >= 2 ? (
             <span className="inline-flex items-center gap-1 text-2xs font-medium text-warn">
-              <Flame className="size-3" aria-hidden /> {streak}-day streak
+              <Fire className="size-3" aria-hidden /> {streak}-day streak
             </span>
           ) : null}
         </div>

@@ -8,7 +8,7 @@
  */
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { InstrumentPicker } from "@/components/market/instrument-picker";
 import { Field, Input, NumberField, Segmented, Select } from "@/components/ui/field";
 import { MARKETS, defaultInstrument, instrumentsFor, marketOf, rotationPair, type MarketId } from "@/lib/market/instruments";
@@ -192,7 +192,7 @@ export function StrategyForm({ config, onChange, errors = [] }: { config: Strate
       ) : null}
 
       <button type="button" onClick={() => setAdvanced((a) => !a)} className="flex items-center gap-1 text-xs font-medium text-ink-2 hover:text-ink" aria-expanded={advanced}>
-        {advanced ? <ChevronDown className="size-3.5" aria-hidden /> : <ChevronRight className="size-3.5" aria-hidden />}
+        {advanced ? <CaretDown className="size-3.5" aria-hidden /> : <CaretRight className="size-3.5" aria-hidden />}
         Position sizing, brokerage and capital
       </button>
 
@@ -275,7 +275,7 @@ export function StrategyForm({ config, onChange, errors = [] }: { config: Strate
       ) : null}
 
       <button type="button" onClick={() => setAssumptionsOpen((a) => !a)} className="flex items-center gap-1 text-xs font-medium text-ink-2 hover:text-ink" aria-expanded={assumptionsOpen}>
-        {assumptionsOpen ? <ChevronDown className="size-3.5" aria-hidden /> : <ChevronRight className="size-3.5" aria-hidden />}
+        {assumptionsOpen ? <CaretDown className="size-3.5" aria-hidden /> : <CaretRight className="size-3.5" aria-hidden />}
         {spec.shortName} execution assumptions
       </button>
       {assumptionsOpen ? (

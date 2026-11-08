@@ -7,7 +7,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { EquityChart, type EquitySeries } from "@/components/charts/equity-chart";
 import { Sparkline } from "@/components/charts/sparkline";
 import { Badge } from "@/components/ui/badge";
@@ -164,7 +164,7 @@ function CompetitorRows({
         <td className="num text-ink-3">{s.rank}</td>
         <td>
           <button type="button" aria-expanded={isOpen} aria-controls={detailId} className="flex items-center gap-2 text-left" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
-            {isOpen ? <ChevronDown className="size-3.5 shrink-0 text-ink-3" aria-hidden /> : <ChevronRight className="size-3.5 shrink-0 text-ink-3" aria-hidden />}
+            {isOpen ? <CaretDown className="size-3.5 shrink-0 text-ink-3" aria-hidden /> : <CaretRight className="size-3.5 shrink-0 text-ink-3" aria-hidden />}
             <span className="inline-block size-2 shrink-0 rounded-sm" style={{ background: s.color }} aria-hidden />
             <span className="font-medium text-ink leading-tight">{s.participant.name}</span>
             <KindBadge kind={s.participant.kind} />

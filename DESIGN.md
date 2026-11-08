@@ -1,6 +1,6 @@
 # EdgeLab design system
 
-Documented from the built product (November 2026). Tokens live in `src/app/globals.css`; components in `src/components/ui`.
+Documented from the built product (November 2026). Tokens live in `src/app/globals.css` and components in `src/components/ui`.
 
 ## World
 
@@ -41,7 +41,7 @@ Rules: emerald and red never mean anything but signed performance, and colour ne
 ## Space and shape
 
 - 4px base and 8px rhythm. Panel padding 16px (`px-4 py-3.5`), page gutter 16px on mobile and 32px on desktop, content max 1320px.
-- Radii: 3px small (badges, inputs), 5px medium (panels, buttons). Nothing larger.
+- Radii: 6px small (badges, chips), 10px medium (panels, buttons, inputs), 14px large (dialogs and sheets). Nothing larger.
 - Depth: flat panels with hairline borders, with shadows only on dialogs and the floating mobile action (offset + soft blur, neutral).
 - Tables are ruled (hairlines), numeric columns right-aligned mono, secondary columns hidden under `sm:`/`md:` on phones.
 
@@ -51,8 +51,9 @@ Rules: emerald and red never mean anything but signed performance, and colour ne
 - **Stat**: label over mono value. `size="lg"` is the hero figure (one per view).
 - **ProvenancePlate**: the signature move, under every chart and result.
 - **Badge** (neutral, up, down, warn, annot, muted) and **SimulatedBadge**; **VerdictBadge** for edge verdicts.
-- **Button** (primary = ink on ground, secondary = raised with border, ghost, annot, danger); minimum 44px targets on phone (`size="lg"`).
-- **Field / Select / Input / NumberField (slider + exact input) / Segmented**: native controls in the house material.
+- **Button** (primary = ink on ground with a hairline top highlight, secondary = raised with border, ghost, annot, danger). Heights 36, 40 and 48px, with 48px (`size="lg"`) for anything a thumb hits. Buttons press in by 2% on tap.
+- **Field / Select / Input / NumberField (slider + exact input) / Segmented**: native controls in the house material, 40px tall. Segmented is a recessed track with a raised selected segment, in the iOS manner.
+- **Icons**: Phosphor, regular weight at 16 to 18px in text and controls, filled weight for the active navigation item. Phone tab bar icons are 26px with 10px labels.
 - **InstrumentPicker + MarketSelector**: market segmented control over a searchable listbox showing ticker · name · exchange · currency.
 - **EquityChart** (SVG, with hover crosshair, dimension-line drawdown, walls and shaded test windows), **PriceChart** (lightweight-charts, with indicators, markers, price lines and progressive reveal), **Sparkline**.
 
@@ -66,4 +67,4 @@ Plain English first ("the biggest fall from a previous high"), then the term. Co
 
 ## Navigation
 
-Phone: bottom bar with Home, Markets, Strategies, Arena, Portfolio (56px tall, safe-area aware); Replay, Journal and Today's Five are reached from Home and the Lab. Desktop: 220px left rail with all eight destinations. Primary action on Home is a fixed button above the tab bar on phones and a header button on desktop.
+Phone: bottom bar with Home, Markets, Strategies, Arena, Portfolio (64px tall, safe-area aware, filled icon and tinted label on the active tab); Replay, Journal and Today's Five are reached from Home and the Lab. Desktop: 220px left rail with all eight destinations. Primary action on Home is a fixed button above the tab bar on phones and a header button on desktop.

@@ -5,7 +5,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { EquityChart, type EquitySeries } from "@/components/charts/equity-chart";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/panel";
 import { ProvenancePlate } from "@/components/ui/provenance";
@@ -83,7 +83,7 @@ export function EquityPanel({ run, title = "Equity curve", showBenchmarks = true
         aside={
           <div role="radiogroup" aria-label="Scale" className="inline-flex rounded-[var(--radius-sm)] border border-border p-0.5 text-2xs">
             {(["value", "percent"] as const).map((v) => (
-              <button key={v} type="button" role="radio" aria-checked={mode === v} onClick={() => setMode(v)} className={cn("rounded-[2px] px-2 py-0.5", mode === v ? "bg-ink text-ground" : "text-ink-2")}>
+              <button key={v} type="button" role="radio" aria-checked={mode === v} onClick={() => setMode(v)} className={cn("rounded-[calc(var(--radius-sm)-2px)] px-2 py-0.5", mode === v ? "bg-ink text-ground" : "text-ink-2")}>
                 {v === "value" ? "$" : "%"}
               </button>
             ))}
@@ -217,7 +217,7 @@ export function MetricsTable({
         </table>
       </div>
       <button type="button" onClick={() => setShowDefs((s) => !s)} className="mt-3 flex items-center gap-1 px-1 text-xs text-ink-2 hover:text-ink" aria-expanded={showDefs}>
-        {showDefs ? <ChevronDown className="size-3.5" aria-hidden /> : <ChevronRight className="size-3.5" aria-hidden />}
+        {showDefs ? <CaretDown className="size-3.5" aria-hidden /> : <CaretRight className="size-3.5" aria-hidden />}
         What these metrics mean
       </button>
       {showDefs ? (

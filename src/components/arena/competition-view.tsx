@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Flag, Link2, Trash2 } from "lucide-react";
+import { Check, Flag, LinkSimple, Trash } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/empty";
@@ -84,13 +84,13 @@ export function CompetitionView({ id }: { id: string }) {
         actions={
           <>
             <Button size="sm" onClick={share} disabled={!series}>
-              {copied ? <Check className="size-3.5 text-up" aria-hidden /> : <Link2 className="size-3.5" aria-hidden />} {copied ? "Link copied" : "Share link"}
+              {copied ? <Check className="size-3.5 text-up" aria-hidden /> : <LinkSimple className="size-3.5" aria-hidden />} {copied ? "Link copied" : "Share link"}
             </Button>
             <Button size="sm" onClick={toggleStatus}>
               <Flag className="size-3.5" aria-hidden /> {competition.status === "open" ? "Mark completed" : "Reopen"}
             </Button>
             <Button size="sm" variant="danger" onClick={del}>
-              <Trash2 className="size-3.5" aria-hidden /> Delete
+              <Trash className="size-3.5" aria-hidden /> Delete
             </Button>
           </>
         }

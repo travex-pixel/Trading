@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Search, X } from "lucide-react";
+import { Check, CaretDown, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/field";
 import { getInstrument, instrumentsFor, MARKET_ORDER, MARKETS, searchInstruments, type Instrument, type MarketId } from "@/lib/market/instruments";
@@ -170,13 +170,13 @@ export function InstrumentPicker({
               ),
             )}
           </span>
-          <ChevronDown className="size-4 shrink-0 text-ink-3" aria-hidden />
+          <CaretDown className="size-4 shrink-0 text-ink-3" aria-hidden />
         </button>
 
         {open ? (
           <div className="absolute z-40 mt-1 w-full overflow-hidden rounded-[var(--radius-md)] border border-border bg-panel shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
             <div className="flex items-center gap-2 border-b border-hairline px-2.5">
-              <Search className="size-3.5 shrink-0 text-ink-3" aria-hidden />
+              <MagnifyingGlass className="size-3.5 shrink-0 text-ink-3" aria-hidden />
               <input
                 ref={inputRef}
                 value={query}
@@ -213,8 +213,8 @@ export function InstrumentPicker({
                     onClick={() => toggle(i.id)}
                     className={cn("flex cursor-pointer items-center gap-2 px-3 py-2", idx === active ? "bg-hover" : "", isSelected ? "text-ink" : "")}
                   >
-                    <span className={cn("flex size-4 shrink-0 items-center justify-center rounded-[3px] border", isSelected ? "border-annot bg-annot text-ground" : "border-border")} aria-hidden>
-                      {isSelected ? <Check className="size-3" strokeWidth={3} /> : null}
+                    <span className={cn("flex size-4 shrink-0 items-center justify-center rounded-[calc(var(--radius-sm)-2px)] border", isSelected ? "border-annot bg-annot text-ground" : "border-border")} aria-hidden>
+                      {isSelected ? <Check className="size-3" /> : null}
                     </span>
                     <InstrumentRow instrument={i} compact />
                     <Badge tone="muted" className="ml-1 hidden sm:inline-flex">

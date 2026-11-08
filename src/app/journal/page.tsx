@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/panel";
 import { JournalList } from "@/components/journal/journal-list";

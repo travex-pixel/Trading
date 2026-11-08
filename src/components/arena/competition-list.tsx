@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Plus, Swords } from "lucide-react";
+import { Plus, Sword } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/empty";
@@ -50,7 +50,7 @@ export function CompetitionList() {
           action={
             <div className="flex flex-wrap gap-2">
               <Button variant="primary" onClick={createDemo} disabled={creating}>
-                <Swords className="size-4" aria-hidden /> {creating ? "Setting up…" : "Create demo competition"}
+                <Sword className="size-4" aria-hidden /> {creating ? "Setting up…" : "Create demo competition"}
               </Button>
               <Button asChild>
                 <Link href="/arena/new">
@@ -70,7 +70,7 @@ export function CompetitionList() {
       <Section title="Completed" items={completed} empty="Nothing completed yet. Mark a competition completed from its page once the dust has settled." />
       <div className="flex justify-end">
         <Button size="sm" variant="ghost" onClick={createDemo} disabled={creating}>
-          <Swords className="size-3.5" aria-hidden /> {creating ? "Setting up…" : "Add another demo competition"}
+          <Sword className="size-3.5" aria-hidden /> {creating ? "Setting up…" : "Add another demo competition"}
         </Button>
       </div>
     </div>

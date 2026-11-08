@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
-import { ChevronRight } from "lucide-react";
+import { CaretRight } from "@phosphor-icons/react";
 import { Badge, SimulatedBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/empty";
@@ -83,7 +83,7 @@ function PortfolioRow({ portfolio: p }: { portfolio: PaperPortfolio }) {
             {STRATEGY_LIBRARY[p.config.params.kind].name} · {p.config.assets.join("+")} · {p.config.timeframe}
           </p>
         </div>
-        <ChevronRight className="size-4 text-ink-3 sm:order-last" aria-hidden />
+        <CaretRight className="size-4 text-ink-3 sm:order-last" aria-hidden />
         <div className="text-xs sm:text-right">
           <span className="block text-2xs text-ink-3">Started</span>
           <span className="num text-ink-2">{fmtDate(p.startedAt)}</span>
