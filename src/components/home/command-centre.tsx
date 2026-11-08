@@ -1,531 +1,943 @@
 "use client";
 
+/**
+ * Command Centre: one screen, no scrolling. It opens on the best strategy for
+ * an ASX instrument you can switch with a tap, says what it is and what the
+ * result means in plain English, and puts one action in front of you: test
+ * it yourself. Everything deeper (the full ranking, your journal, the guide)
+ * opens in a sheet over this screen.
+ */
+
 import Link from "next/link";
-import { useMemo } from "react";
-import { ArrowRight, Plus } from "@phosphor-icons/react";
+import { useCallback, useMemo, useState } from "react";
+import {
+  ArrowRight,
+  CaretRight,
+  Lightning,
+  ListNumbers,
+  Plus,
+  Question,
+  Wallet,
+} from "@phosphor-icons/react";
 import { EquityChart } from "@/components/charts/equity-chart";
-import { Sparkline } from "@/components/charts/sparkline";
 import { Badge, SimulatedBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { ErrorState, Skeleton } from "@/components/ui/empty";
-import { PageHeader, Panel, PanelBody, PanelHeader } from "@/components/ui/panel";
-import { ProvenancePlate } from "@/components/ui/provenance";
-import { Stat } from "@/components/ui/stat";
+import { Segmented } from "@/components/ui/field";
+import { Panel } from "@/components/ui/panel";
+import { Cell, ProvenancePlate } from "@/components/ui/provenance";
 import { VerdictBadge } from "@/components/ui/verdict";
-import { fmtDate, fmtDateTime, fmtInt, fmtMoney, fmtNum, fmtPct, fmtPrice, signClass, type Currency } from "@/lib/format";
-import { buildLeaderboard, deriveAlerts, HOME_TIMEFRAME, HOME_WATCHLIST, marketRows, regimeSummary, type LeaderboardRow } from "@/lib/home/overview";
-import { useMonitor, type LiveSignal } from "@/lib/home/signals";
+import { useTodaysQuiz } from "@/components/daily/daily-quiz";
+import { computeStreak, useDailyRecord } from "@/lib/daily/store";
+import { QUIZ_SIZE, scoreQuiz } from "@/lib/daily/quiz";
+import {
+  fmtDate,
+  fmtInt,
+  fmtMoney,
+  fmtNum,
+  fmtPct,
+  fmtPrice,
+  signClass,
+  type Currency,
+} from "@/lib/format";
+import {
+  bestStrategyReport,
+  type BestStrategyReport,
+  type MeaningPoint,
+  type RankedStrategy,
+} from "@/lib/home/best";
+import {
+  buildLeaderboard,
+  deriveAlerts,
+  HOME_TIMEFRAME,
+  HOME_WATCHLIST,
+} from "@/lib/home/overview";
+import { useMonitor } from "@/lib/home/signals";
 import { marketStatus, tzLabel } from "@/lib/market/calendar";
-import { MARKETS } from "@/lib/market/instruments";
 import { useCandles } from "@/lib/market/client";
+import { getInstrument } from "@/lib/market/instruments";
 import type { PaperState } from "@/lib/quant/paper";
-import type { EquityPoint } from "@/lib/quant/types";
-import type { Experiment } from "@/lib/store/types";
-import { selectExperiments, selectPortfolios, useRepository } from "@/lib/store/use-store";
+import {
+  selectExperiments,
+  selectPortfolios,
+  useRepository,
+} from "@/lib/store/use-store";
 import { cn } from "@/lib/utils";
-import { DailyTeaser } from "@/components/daily/daily-quiz";
-import { OnboardingPanel, useOnboarding } from "./onboarding";
+import { GuideSheet, useOnboarding } from "./onboarding";
 import { useNow } from "./use-now";
 
+const DEFAULT_ASSET = "ASX:CBA";
+
 export function CommandCentre() {
-  const { series, error, loading } = useCandles([...HOME_WATCHLIST], HOME_TIMEFRAME);
+  const { series, error, loading } = useCandles(
+    [...HOME_WATCHLIST],
+    HOME_TIMEFRAME,
+  );
   const experiments = useRepository(selectExperiments);
   const portfolios = useRepository(selectPortfolios);
-  const onboarding = useOnboarding();
   const monitor = useMonitor(experiments.items, portfolios.items);
+  const onboarding = useOnboarding();
 
-  const market = useMemo(() => (series ? marketRows(series) : null), [series]);
-  const regime = useMemo(() => (series ? regimeSummary(series[0]) : null), [series]);
-  const board = useMemo(() => (experiments.items ? buildLeaderboard(experiments.items, series ? series.filter((s) => s.asset === "ASX:CBA" || s.asset === "ASX:BHP") : null) : null), [series, experiments.items]);
-  const alerts = useMemo(() => (board && experiments.items ? deriveAlerts({ rows: board.rows, experiments: experiments.items, paper: monitor.paper }) : []), [board, experiments.items, monitor.paper]);
-  const recent = useMemo(() => [...(experiments.items ?? [])].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5), [experiments.items]);
+  const [asset, setAsset] = useState<string>(DEFAULT_ASSET);
+  const [sheet, setSheet] = useState<"none" | "ranking" | "guide">("none");
+  const closeSheet = useCallback(() => setSheet("none"), []);
+
+  const current = useMemo(
+    () => series?.find((s) => s.asset === asset) ?? series?.[0] ?? null,
+    [series, asset],
+  );
+  const report = useMemo(
+    () => (current ? bestStrategyReport(current) : null),
+    [current],
+  );
+  const journalBoard = useMemo(
+    () =>
+      experiments.items && experiments.items.length > 0
+        ? buildLeaderboard(experiments.items, null)
+        : null,
+    [experiments.items],
+  );
+  const alerts = useMemo(
+    () =>
+      experiments.items
+        ? deriveAlerts({
+            rows: journalBoard?.rows ?? [],
+            experiments: experiments.items,
+            paper: monitor.paper,
+          })
+        : [],
+    [journalBoard, experiments.items, monitor.paper],
+  );
+
+  const guideOpen = sheet === "guide";
+  const firstVisit = onboarding.dismissed === false;
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title="Command Centre"
-        description={regime ? <span>{regime.sentence}</span> : "What the ASX is doing, how your strategies are holding up, which signals need attention, and what to look at next."}
-        actions={
-          <>
-            {onboarding.dismissed ? (
-              <button type="button" onClick={onboarding.show} className="text-xs text-ink-3 hover:text-ink">
-                Show guide
-              </button>
-            ) : null}
-            <Button variant="primary" size="lg" className="hidden lg:inline-flex" asChild>
-              <Link href="/lab/build">
-                <Plus className="size-4" aria-hidden /> New experiment
-              </Link>
-            </Button>
-          </>
-        }
-      />
+    <div className="fit-screen flex min-h-[560px] flex-col gap-3 lg:gap-4">
+      <TopBar onGuide={() => setSheet("guide")} firstVisit={firstVisit} />
 
-      <DailyTeaser />
-      {onboarding.dismissed === false ? <OnboardingPanel onDismiss={onboarding.dismiss} /> : null}
+      {error ? (
+        <ErrorState title="Market data unavailable" body={error} />
+      ) : null}
 
-      {error ? <ErrorState title="Market data unavailable" body={error} /> : null}
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:grid-rows-1 lg:gap-4">
+        <BestStrategyHero
+          report={report}
+          loading={loading && !series}
+          asset={current?.asset ?? asset}
+          onAsset={setAsset}
+          lastClose={
+            current ? current.candles[current.candles.length - 1] : null
+          }
+          prevClose={
+            current && current.candles.length > 1
+              ? current.candles[current.candles.length - 2]
+              : null
+          }
+          onRanking={() => setSheet("ranking")}
+        />
 
-      <MarketStrip market={market} regime={regime} loading={loading} source={series?.[0]?.source ?? null} />
-
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
-        <PaperHeadline paper={monitor.paper} loading={monitor.loading || portfolios.loading} />
-        <Leaderboard board={board} loading={loading || experiments.loading} />
+        {/* Phone: three tiles in a row. Desktop: a column with the ranking in full. */}
+        <div className="grid grid-cols-3 gap-3 lg:flex lg:min-h-0 lg:flex-col lg:gap-4">
+          <QuizTile />
+          <PortfolioTile
+            paper={monitor.paper}
+            signals={monitor.signals.length}
+            loading={monitor.loading || portfolios.loading}
+          />
+          <Tile
+            label="Ranking"
+            value={report ? `${report.ranked.length} strategies` : "…"}
+            icon={ListNumbers}
+            onClick={() => setSheet("ranking")}
+            className="lg:hidden"
+          />
+          <RankingPanel
+            report={report}
+            className="hidden lg:flex"
+            onMore={() => setSheet("ranking")}
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2 lg:items-start">
-        <Signals signals={monitor.signals} loading={monitor.loading} hasStrategies={(experiments.items?.length ?? 0) > 0} />
-        <Positions paper={monitor.paper} />
-      </div>
-
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2 lg:items-start">
-        <RecentExperiments recent={recent} loading={experiments.loading} />
-        <Alerts alerts={alerts} />
-      </div>
-
-      {/* Mobile primary action, above the tab bar. */}
-      <Button variant="primary" size="lg" className="fixed right-4 z-20 shadow-[0_8px_24px_rgba(0,0,0,0.45)] lg:hidden" style={{ bottom: "calc(80px + env(safe-area-inset-bottom))" }} asChild>
-        <Link href="/lab/build">
-          <Plus className="size-4" aria-hidden /> New experiment
-        </Link>
-      </Button>
+      {sheet === "ranking" && report ? (
+        <RankingSheet
+          report={report}
+          journal={journalBoard?.rows ?? []}
+          alerts={alerts}
+          onClose={closeSheet}
+        />
+      ) : null}
+      {guideOpen ? (
+        <GuideSheet
+          onClose={() => {
+            onboarding.dismiss();
+            closeSheet();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
 
 /* ------------------------------------------------------------------------- */
+/* Top bar                                                                    */
+/* ------------------------------------------------------------------------- */
 
-function MarketStrip({ market, regime, loading, source }: { market: ReturnType<typeof marketRows> | null; regime: ReturnType<typeof regimeSummary>; loading: boolean; source: import("@/lib/quant/types").DataSource | null }) {
+function TopBar({
+  onGuide,
+  firstVisit,
+}: {
+  onGuide: () => void;
+  firstVisit: boolean;
+}) {
   const now = useNow();
   const status = now ? marketStatus("ASX", now) : null;
+  const open = status?.state === "open";
+  const label = !status
+    ? null
+    : status.state === "open"
+      ? `ASX open · closes ${new Date(status.closesAt).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", timeZone: "Australia/Sydney" })}`
+      : status.state === "closed"
+        ? `ASX closed${status.opensAt ? ` · opens ${new Date(status.opensAt).toLocaleString("en-AU", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Australia/Sydney" })}` : ""}`
+        : "ASX open";
   return (
-    <Panel>
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-hairline px-4 py-2">
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="font-semibold text-ink">ASX</span>
-          <span className="text-ink-3">{MARKETS.ASX.description.split(".")[0]}</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-          {status ? (
-            <>
-              <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap font-medium", status.state === "open" ? "text-up" : "text-ink-2")}>
-                <span aria-hidden className={cn("size-1.5 rounded-full", status.state === "open" ? "bg-up" : "bg-ink-3")} />
-                {status.state === "open" ? "Open" : status.state === "closed" ? `Closed · ${status.reason === "weekend" ? "weekend" : status.reason === "holiday" ? "holiday" : status.reason === "pre_market" ? "pre-market" : "after hours"}` : "Open 24/7"}
-              </span>
-              <span className="num text-ink-3">
-                {status.state === "open" ? `closes ${new Date(status.closesAt).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", timeZone: "Australia/Sydney" })}` : status.state === "closed" && status.opensAt ? `opens ${new Date(status.opensAt).toLocaleString("en-AU", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Australia/Sydney" })}` : ""} {now ? tzLabel("ASX", now) : ""}
-              </span>
-            </>
-          ) : (
-            <Skeleton className="h-4 w-40" />
-          )}
-        </div>
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-baseline gap-3">
+        <h1 className="text-lg font-semibold tracking-tight text-ink lg:text-xl">
+          Command Centre
+        </h1>
       </div>
-      <div className="grid grid-cols-2 divide-x divide-y divide-hairline sm:grid-cols-4 sm:divide-y-0">
-        {(market ?? [null, null, null, null]).map((row, i) => (
-          <Link key={row?.asset ?? i} href={row ? `/lab/build?asset=${encodeURIComponent(row.asset)}` : "/markets"} className="group flex flex-col gap-1.5 px-4 py-3 transition-colors hover:bg-hover">
-            {row ? (
-              <>
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="num text-sm font-semibold text-ink">{row.symbol}</span>
-                  <span className="num text-sm text-ink">{fmtPrice(row.last, row.currency)}</span>
-                </div>
-                <div className="flex items-end justify-between gap-2">
-                  <div className="flex gap-3">
-                    <div>
-                      <span className={cn("num block text-xs", signClass(row.change1dPct))}>{fmtPct(row.change1dPct, { sign: true })}</span>
-                      <span className="block text-2xs text-ink-3">1d</span>
-                    </div>
-                    <div>
-                      <span className={cn("num block text-xs", signClass(row.change1mPct))}>{fmtPct(row.change1mPct, { sign: true })}</span>
-                      <span className="block text-2xs text-ink-3">1m</span>
-                    </div>
-                  </div>
-                  <Sparkline values={row.closes} width={64} height={22} tone="muted" />
-                </div>
-              </>
-            ) : (
-              <Skeleton className="h-12 w-full" />
-            )}
+      <div className="flex items-center gap-2">
+        {label ? (
+          <Link
+            href="/markets"
+            className="hidden items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-2xs text-ink-2 hover:border-border-strong hover:text-ink sm:inline-flex"
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "size-1.5 rounded-full",
+                open ? "bg-up" : "bg-ink-3",
+              )}
+            />
+            <span className="num whitespace-nowrap">{label}</span>
+            {now ? (
+              <span className="num hidden text-ink-4 md:inline">
+                {tzLabel("ASX", now)}
+              </span>
+            ) : null}
           </Link>
-        ))}
+        ) : (
+          <Skeleton className="hidden h-6 w-40 sm:block" />
+        )}
+        <Button
+          size="sm"
+          variant={firstVisit ? "secondary" : "ghost"}
+          onClick={onGuide}
+          aria-label="How EdgeLab works"
+        >
+          <Question
+            className="size-4"
+            weight={firstVisit ? "fill" : "regular"}
+            aria-hidden
+          />{" "}
+          <span className={firstVisit ? "" : "hidden sm:inline"}>
+            {firstVisit ? "How it works" : "Guide"}
+          </span>
+        </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          className="hidden lg:inline-flex"
+          asChild
+        >
+          <Link href="/lab/build">
+            <Plus className="size-4" weight="bold" aria-hidden /> New experiment
+          </Link>
+        </Button>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-hairline px-4 py-2">
-        <div className="flex items-center gap-2">
-          {regime ? (
-            <>
-              <Badge tone={regime.regime === "uptrend" ? "up" : regime.regime === "downtrend" ? "down" : regime.regime === "high_volatility" ? "warn" : "neutral"}>{regime.label}</Badge>
-              <span className="text-xs text-ink-2">
-                {regime.symbol} regime, <span className="num">{regime.barsPersisted}</span> sessions so far
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------------- */
+/* Hero                                                                       */
+/* ------------------------------------------------------------------------- */
+
+function BestStrategyHero({
+  report,
+  loading,
+  asset,
+  onAsset,
+  lastClose,
+  prevClose,
+  onRanking,
+}: {
+  report: BestStrategyReport | null;
+  loading: boolean;
+  asset: string;
+  onAsset: (a: string) => void;
+  lastClose: { time: number; close: number } | null;
+  prevClose: { time: number; close: number } | null;
+  onRanking: () => void;
+}) {
+  const options = HOME_WATCHLIST.map((id) => ({
+    value: id,
+    label: getInstrument(id)?.symbol ?? id,
+  }));
+  const inst = getInstrument(asset);
+  const change =
+    lastClose && prevClose && prevClose.close > 0
+      ? (lastClose.close / prevClose.close - 1) * 100
+      : null;
+
+  return (
+    <Panel className="flex min-h-0 flex-col overflow-hidden">
+      {/* Instrument strip */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-hairline px-4 py-2.5">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <span className="whitespace-nowrap font-mono text-2xs uppercase tracking-wider text-ink-4">
+            Best on
+          </span>
+          <span className="truncate text-sm font-semibold text-ink sm:hidden">
+            {inst?.symbol ?? asset}
+          </span>
+          <span className="hidden truncate text-sm font-semibold text-ink sm:inline">
+            {inst?.name ?? asset}
+          </span>
+          {lastClose && report ? (
+            <span className="num whitespace-nowrap text-xs text-ink-3">
+              {fmtPrice(lastClose.close, report.currency)}{" "}
+              <span className={signClass(change)}>
+                {fmtPct(change, { sign: true })}
               </span>
-            </>
-          ) : loading ? (
-            <Skeleton className="h-5 w-40" />
-          ) : (
-            <span className="text-xs text-ink-3">Regime unavailable</span>
-          )}
-        </div>
-        <div className="flex items-center gap-3 text-2xs">
-          {source ? (
-            <span className={cn("font-mono", source.isSynthetic ? "text-warn" : "text-ink-3")}>
-              {source.isSynthetic ? "DEMO · synthetic · last bar " : `${source.label} · last close `}
-              {market?.[0] ? fmtDate(market[0].lastTime) : ""}
             </span>
           ) : null}
-          <Link href="/markets" className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-ink-2 hover:text-ink">
-            All markets <ArrowRight className="size-3" aria-hidden />
-          </Link>
+        </div>
+        <Segmented
+          size="sm"
+          label="Instrument"
+          value={asset}
+          onChange={onAsset}
+          options={options}
+        />
+      </div>
+
+      {!report ? (
+        <div className="flex flex-1 flex-col gap-4 p-4" aria-busy={loading}>
+          <Skeleton className="h-7 w-56" />
+          <Skeleton className="h-4 w-full max-w-md" />
+          <Skeleton className="h-12 w-72" />
+          <Skeleton className="min-h-32 flex-1 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      ) : (
+        <HeroBody report={report} onRanking={onRanking} />
+      )}
+    </Panel>
+  );
+}
+
+function HeroBody({
+  report,
+  onRanking,
+}: {
+  report: BestStrategyReport;
+  onRanking: () => void;
+}) {
+  const { best, buyAndHold, meaning, assessment, symbol, currency } = report;
+  const m = best.result.metrics;
+  const b = buyAndHold.metrics;
+  const testHref = `/lab/build?kind=${best.kind}&asset=${encodeURIComponent(report.asset)}`;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col px-4 pt-3 pb-4 sm:px-5">
+      {/* Name and verdict */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <h2 className="text-[22px] font-semibold leading-7 tracking-tight text-ink sm:text-2xl">
+          {best.name}
+        </h2>
+        <VerdictBadge verdict={assessment.verdict} size="sm" />
+      </div>
+      <p className="mt-1 line-clamp-1 max-w-[60ch] text-sm leading-5 text-ink-2 text-pretty sm:line-clamp-none">
+        {best.summary}
+      </p>
+
+      {/* Figures */}
+      <div className="mt-3 grid grid-cols-3 gap-3">
+        <Figure
+          label="Return"
+          value={fmtPct(m.totalReturnPct, { sign: true })}
+          tone={m.totalReturnPct >= 0 ? "up" : "down"}
+          sub={`hold ${fmtPct(b.totalReturnPct, { sign: true })}`}
+          hero
+        />
+        <Figure
+          label="Worst fall"
+          value={fmtPct(-m.maxDrawdownPct)}
+          tone="down"
+          sub={`hold ${fmtPct(-b.maxDrawdownPct)}`}
+        />
+        <Figure
+          label="Per unit of risk"
+          value={best.score === null ? "–" : fmtNum(best.score)}
+          tone="neutral"
+          sub={`${fmtInt(m.tradeCount)} trades`}
+        />
+      </div>
+
+      {/* Chart fills whatever is left */}
+      <div className="relative mt-2 min-h-[72px] flex-1">
+        <div className="absolute inset-0">
+          <EquityChart
+            series={[
+              {
+                id: "best",
+                name: best.name,
+                points: best.result.equity,
+                color: "var(--series-1)",
+              },
+              {
+                id: "bh",
+                name: `Hold ${symbol}`,
+                points: buyAndHold.equity,
+                color: "var(--series-muted)",
+                muted: true,
+              },
+            ]}
+            height={0}
+            fill
+            compact
+            currency={currency}
+          />
         </div>
       </div>
-    </Panel>
+
+      {/* Meaning */}
+      <div className="mt-2 border-t border-hairline pt-3">
+        <p className="line-clamp-2 text-sm leading-5 text-ink text-pretty sm:line-clamp-none">
+          {meaning.headline}
+        </p>
+        <p className="mt-1 line-clamp-1 text-xs leading-4 text-ink-3 text-pretty sm:line-clamp-none">
+          {meaning.caveat}
+        </p>
+      </div>
+
+      {/* Actions */}
+      <div className="mt-3 flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full sm:w-auto sm:min-w-56"
+          asChild
+        >
+          <Link href={testHref}>
+            Test this on {symbol}{" "}
+            <ArrowRight className="size-4" weight="bold" aria-hidden />
+          </Link>
+        </Button>
+        <button
+          type="button"
+          onClick={onRanking}
+          className="hidden h-10 items-center justify-center gap-1 rounded-[var(--radius-md)] px-3 text-sm text-ink-2 hover:bg-hover hover:text-ink sm:inline-flex"
+        >
+          What this means and the full ranking{" "}
+          <CaretRight className="size-3.5" aria-hidden />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Figure({
+  label,
+  value,
+  sub,
+  tone,
+  hero = false,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  tone: "up" | "down" | "neutral";
+  hero?: boolean;
+}) {
+  const toneCls =
+    tone === "up" ? "text-up" : tone === "down" ? "text-down" : "text-ink";
+  return (
+    <div className="min-w-0">
+      <div className="text-2xs leading-4 text-ink-3">{label}</div>
+      <div
+        className={cn(
+          "mt-0.5 truncate leading-none",
+          hero
+            ? "num-hero text-[26px] sm:text-3xl"
+            : "num text-[26px] sm:text-2xl",
+          toneCls,
+        )}
+      >
+        {value}
+      </div>
+      <div className="num mt-1 truncate text-2xs text-ink-3">{sub}</div>
+    </div>
   );
 }
 
 /* ------------------------------------------------------------------------- */
+/* Tiles                                                                      */
+/* ------------------------------------------------------------------------- */
 
-function combinedEquity(paper: PaperState[]): EquityPoint[] {
-  const withResults = paper.filter((p) => p.result);
-  if (withResults.length === 0) return [];
-  if (withResults.length === 1) return withResults[0].result!.equity;
-  const maps = withResults.map((p) => new Map(p.result!.equity.map((e) => [e.time, e.equity])));
-  const times = [...maps[0].keys()].filter((t) => maps.every((m) => m.has(t)));
-  let peak = -Infinity;
-  return times.map((time) => {
-    const equity = maps.reduce((s, m) => s + (m.get(time) ?? 0), 0);
-    if (equity > peak) peak = equity;
-    return { time, equity, cash: 0, exposure: 0, drawdown: peak > 0 ? (peak - equity) / peak : 0 };
-  });
-}
-
-function PaperHeadline({ paper, loading }: { paper: PaperState[]; loading: boolean }) {
-  // Totals are per currency; the headline shows the largest group and lists the rest.
-  const groups = useMemo(() => {
-    const by = new Map<Currency, PaperState[]>();
-    for (const p of paper) {
-      const ccy = (p.result?.currency ?? "AUD") as Currency;
-      by.set(ccy, [...(by.get(ccy) ?? []), p]);
-    }
-    return [...by.entries()].sort((a, b) => b[1].length - a[1].length);
-  }, [paper]);
-  const [headCcy, head] = groups[0] ?? ["AUD" as Currency, [] as PaperState[]];
-  const running = paper.filter((p) => p.portfolio.status === "running");
-  const total = head.reduce((s, p) => s + p.equity, 0);
-  const capital = head.reduce((s, p) => s + p.portfolio.config.initialCapital, 0);
-  const pnl = total - capital;
-  const equity = useMemo(() => combinedEquity(head), [head]);
-  const currentDd = equity.length ? equity[equity.length - 1].drawdown * 100 : 0;
-
-  return (
-    <Panel>
-      <PanelHeader title="Simulated portfolio" description={paper.length ? `${running.length} running · ${paper.length - running.length} stopped` : "Paper trading with virtual capital"} aside={<SimulatedBadge />} />
-      {loading && paper.length === 0 ? (
-        <PanelBody>
-          <Skeleton className="h-10 w-40" />
-          <Skeleton className="mt-3 h-24 w-full" />
-        </PanelBody>
-      ) : paper.length === 0 ? (
-        <PanelBody>
-          <p className="max-w-[44ch] text-sm text-ink-2 leading-5">No simulated portfolios yet. Test a strategy in the Lab, then follow it forward with virtual capital to see whether the backtest survives contact with data it has not seen.</p>
-          <Button className="mt-4" variant="primary" asChild>
-            <Link href="/lab/build">Start in the Lab</Link>
-          </Button>
-        </PanelBody>
-      ) : (
-        <>
-          <PanelBody className="flex flex-wrap items-end justify-between gap-4">
-            <Stat label={`Total value (${headCcy})`} value={fmtMoney(total, { currency: headCcy })} size="lg" />
-            <Stat
-              label="Profit / loss"
-              value={fmtMoney(pnl, { currency: headCcy, sign: true })}
-              tone={pnl >= 0 ? "up" : "down"}
-              sub={
-                <span>
-                  <span className={signClass(pnl)}>{fmtPct(capital > 0 ? (pnl / capital) * 100 : 0, { sign: true })}</span> on {fmtMoney(capital, { currency: headCcy })}
-                  {currentDd > 0.5 ? <span className="text-down"> · {fmtPct(currentDd)} below peak</span> : null}
-                </span>
-              }
-            />
-          </PanelBody>
-          {groups.length > 1 ? (
-            <p className="px-4 pb-2 text-2xs text-ink-3">
-              Also {groups.slice(1).map(([ccy, ps]) => `${fmtMoney(ps.reduce((s, p) => s + p.equity, 0), { currency: ccy })} across ${ps.length} ${ccy} portfolio${ps.length === 1 ? "" : "s"}`).join("; ")}.
-            </p>
-          ) : null}
-          {equity.length >= 2 ? (
-            <div className="px-2 pb-1">
-              <EquityChart series={[{ id: "paper", name: "Simulated equity", points: equity, color: "var(--series-1)" }]} height={150} currency={headCcy} />
-            </div>
-          ) : (
-            <p className="px-4 pb-3 text-xs text-ink-3">The clock has not advanced yet. Open Portfolio to step the simulation forward.</p>
+function Tile({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  href,
+  onClick,
+  tone,
+  className,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  icon: typeof Lightning;
+  href?: string;
+  onClick?: () => void;
+  tone?: "warn" | "up";
+  className?: string;
+}) {
+  const inner = (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-2xs font-medium text-ink-3">
+          {label}
+        </span>
+        <Icon
+          className={cn(
+            "size-4 shrink-0",
+            tone === "warn"
+              ? "text-warn"
+              : tone === "up"
+                ? "text-up"
+                : "text-ink-3",
           )}
-          {head[0]?.result ? <ProvenancePlate source={head[0].result.source} timeframe={head[0].result.timeframe} currency={headCcy} /> : null}
-        </>
-      )}
-    </Panel>
+          weight={tone ? "fill" : "regular"}
+          aria-hidden
+        />
+      </div>
+      <div className="mt-1.5 truncate text-sm font-semibold text-ink lg:text-base">
+        {value}
+      </div>
+      {sub ? (
+        <div className="mt-0.5 truncate text-2xs text-ink-3">{sub}</div>
+      ) : null}
+    </>
+  );
+  const cls = cn(
+    "flex min-h-[76px] flex-col justify-between rounded-[var(--radius-md)] border border-hairline bg-panel px-3 py-2.5 text-left transition-colors hover:border-border-strong hover:bg-hover active:scale-[0.99] lg:min-h-[84px] lg:px-4 lg:py-3",
+    className,
+  );
+  if (href) {
+    return (
+      <Link href={href} className={cls}>
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} className={cls}>
+      {inner}
+    </button>
   );
 }
 
-/* ------------------------------------------------------------------------- */
-
-function Leaderboard({ board, loading }: { board: ReturnType<typeof buildLeaderboard> | null; loading: boolean }) {
-  const rows = board?.rows ?? [];
-  const strongest = rows[0];
-  const deteriorating = rows.find((r) => r.deteriorating);
+function QuizTile() {
+  const { quiz, date } = useTodaysQuiz();
+  const { record } = useDailyRecord();
+  const day = record?.days[date] ?? null;
+  const streak = record ? computeStreak(record, date) : 0;
+  const completed = day?.completedAt != null;
+  const scored = quiz && day ? scoreQuiz(quiz, day.answers) : null;
   return (
-    <Panel>
-      <PanelHeader
-        title="Strategy leaderboard"
-        description={board?.source === "journal" ? "Your saved experiments, as tested. Ranked by risk-adjusted return." : "Library defaults on CBA (ASX), daily bars, last two years. Save your own experiments to see them here."}
-        aside={
-          <Button size="sm" variant="ghost" asChild>
-            <Link href="/lab">Strategies</Link>
-          </Button>
-        }
+    <Tile
+      label="Daily quiz"
+      value={
+        completed && scored
+          ? `${scored.score}/${QUIZ_SIZE} · Review`
+          : "Play · 2 min"
+      }
+      sub={
+        streak >= 2
+          ? `${streak}-day streak`
+          : completed
+            ? "New five tomorrow"
+            : "Edge or luck?"
+      }
+      icon={Lightning}
+      href="/daily"
+      tone={completed ? "up" : "warn"}
+    />
+  );
+}
+
+function PortfolioTile({
+  paper,
+  signals,
+  loading,
+}: {
+  paper: PaperState[];
+  signals: number;
+  loading: boolean;
+}) {
+  const running = paper.filter((p) => p.portfolio.status === "running");
+  const ccy = (running[0]?.result?.currency ??
+    paper[0]?.result?.currency ??
+    "AUD") as Currency;
+  const total = running.reduce((s, p) => s + p.equity, 0);
+  const capital = running.reduce(
+    (s, p) => s + p.portfolio.config.initialCapital,
+    0,
+  );
+  const pnl = total - capital;
+  if (loading && paper.length === 0)
+    return <Tile label="Portfolio" value="…" icon={Wallet} href="/paper" />;
+  if (running.length === 0)
+    return (
+      <Tile
+        label="Portfolio"
+        value="Start one"
+        sub="Virtual capital"
+        icon={Wallet}
+        href="/paper"
       />
-      {loading && rows.length === 0 ? (
-        <PanelBody>
+    );
+  return (
+    <Tile
+      label="Simulated"
+      value={fmtMoney(total, { currency: ccy, compact: true })}
+      sub={`${pnl >= 0 ? "+" : ""}${fmtPct(capital > 0 ? (pnl / capital) * 100 : 0)}${signals ? ` · ${signals} signal${signals === 1 ? "" : "s"}` : ` · ${running.length} running`}`}
+      icon={Wallet}
+      href="/paper"
+      tone={pnl >= 0 ? "up" : undefined}
+    />
+  );
+}
+
+/* ------------------------------------------------------------------------- */
+/* Ranking (desktop panel and the sheet)                                      */
+/* ------------------------------------------------------------------------- */
+
+function RankingPanel({
+  report,
+  className,
+  onMore,
+}: {
+  report: BestStrategyReport | null;
+  className?: string;
+  onMore: () => void;
+}) {
+  return (
+    <Panel className={cn("min-h-0 flex-1 flex-col overflow-hidden", className)}>
+      <div className="flex items-start justify-between gap-3 border-b border-hairline px-4 pt-3 pb-2.5">
+        <div>
+          <h2 className="text-sm font-semibold text-ink">
+            Ranking on {report?.symbol ?? "…"}
+          </h2>
+          <p className="mt-0.5 text-xs leading-4 text-ink-3">
+            Return per unit of risk, same bars, same costs.
+          </p>
+        </div>
+        <Button size="sm" variant="ghost" onClick={onMore}>
+          What it means <CaretRight className="size-3.5" aria-hidden />
+        </Button>
+      </div>
+      {!report ? (
+        <div className="space-y-2 p-4">
           <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="mt-2 h-4 w-2/3" />
-          <Skeleton className="mt-2 h-4 w-1/2" />
-        </PanelBody>
-      ) : rows.length === 0 ? (
-        <PanelBody>
-          <p className="text-sm text-ink-2">Nothing to rank yet.</p>
-        </PanelBody>
-      ) : (
-        <>
-          <div className="space-y-1 px-4 pt-3 text-xs text-ink-2">
-            {strongest ? (
-              <p>
-                Strongest: <Link href={strongest.href} className="text-ink hover:underline underline-offset-2">{strongest.name}</Link>
-                {strongest.metrics.sharpe !== null ? <>, Sharpe <span className="num">{fmtNum(strongest.metrics.sharpe)}</span></> : null}.
-              </p>
-            ) : null}
-            {deteriorating ? (
-              <p className="text-warn">
-                Deteriorating: <Link href={deteriorating.href} className="hover:underline underline-offset-2">{deteriorating.name}</Link>
-                {deteriorating.recent60dPct !== null ? <>, {fmtPct(deteriorating.recent60dPct, { sign: true })} over its last 60 days</> : <>, {fmtPct(deteriorating.currentDrawdownPct, { digits: 0 })} below its peak</>}.
-              </p>
-            ) : null}
-          </div>
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th scope="col">#</th>
-                  <th scope="col">Strategy</th>
-                  <th scope="col" className="num">Return</th>
-                  <th scope="col" className="num hidden sm:table-cell">Max DD</th>
-                  <th scope="col" className="num">Risk-adj.</th>
-                  <th scope="col" className="num hidden sm:table-cell">Trades</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.slice(0, 8).map((r, i) => (
-                  <LeaderboardRowView key={r.id} row={r} rank={i + 1} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {board?.source === "library" && board.period ? <p className="px-4 pb-3 pt-1 text-2xs text-ink-3">Demo dataset · {fmtDate(board.period.start)} – {fmtDate(board.period.end)} · daily bars.</p> : null}
-        </>
-      )}
-    </Panel>
-  );
-}
-
-function LeaderboardRowView({ row, rank }: { row: LeaderboardRow; rank: number }) {
-  return (
-    <tr>
-      <td className="num text-ink-3">{rank}</td>
-      <td>
-        <Link href={row.href} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-ink hover:underline underline-offset-2">
-          <span className="truncate">{row.name}</span>
-          <span className="num text-2xs text-ink-3">{row.instrumentLabel}</span>
-          {row.deteriorating ? <Badge tone="warn">Deteriorating</Badge> : null}
-          {rank === 1 ? <Badge tone="up">Strongest</Badge> : null}
-          {row.verdict ? <VerdictBadge verdict={row.verdict} size="sm" /> : null}
-        </Link>
-      </td>
-      <td className={cn("num", signClass(row.metrics.totalReturnPct))}>
-        {fmtPct(row.metrics.totalReturnPct, { sign: true })}
-        {row.benchmarkReturnPct !== null ? <span className="block text-2xs text-ink-3">B&amp;H {fmtPct(row.benchmarkReturnPct, { sign: true })}</span> : null}
-      </td>
-      <td className="num hidden text-down sm:table-cell">{fmtPct(-row.metrics.maxDrawdownPct)}</td>
-      <td className="num text-ink-2">{row.score === null ? "–" : fmtNum(row.score)}</td>
-      <td className="num hidden text-ink-2 sm:table-cell">{fmtInt(row.metrics.tradeCount)}</td>
-    </tr>
-  );
-}
-
-/* ------------------------------------------------------------------------- */
-
-function Signals({ signals, loading, hasStrategies }: { signals: LiveSignal[]; loading: boolean; hasStrategies: boolean }) {
-  return (
-    <Panel>
-      <PanelHeader title="Signals" description="Your saved strategies, re-run on the latest bars. A row appears when a rule fired within the last three bars." />
-      {loading && hasStrategies ? (
-        <PanelBody>
           <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="mt-2 h-4 w-1/2" />
-        </PanelBody>
-      ) : !hasStrategies ? (
-        <PanelBody>
-          <p className="text-sm text-ink-2 leading-5">Save a strategy to the journal and it will be monitored here against incoming data.</p>
-        </PanelBody>
-      ) : signals.length === 0 ? (
-        <PanelBody>
-          <p className="text-sm text-ink-2 leading-5">No strategy fired on its latest bars. Quiet is a valid state.</p>
-        </PanelBody>
+          <Skeleton className="h-4 w-1/2" />
+        </div>
       ) : (
-        <ul className="divide-y divide-hairline">
-          {signals.slice(0, 5).map((s) => (
-            <li key={s.id} className="px-4 py-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Link href={s.href} className="flex min-w-0 items-center gap-2 text-sm text-ink hover:underline underline-offset-2">
-                  <Badge tone={s.side === "buy" ? "up" : "down"}>{s.side === "buy" ? "Buy" : "Sell"}</Badge>
-                  <span className="num font-semibold">{s.instrument}</span>
-                  <span className="truncate text-ink-2">{s.name}</span>
-                </Link>
-                <span className="num text-2xs text-ink-3">
-                  {s.barsAgo === 0 ? "latest bar" : `${s.barsAgo} bar${s.barsAgo === 1 ? "" : "s"} ago`} · {fmtDateTime(s.time)}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-ink-2 leading-4">{s.reason}</p>
-              <p className="num mt-1 text-2xs text-ink-3">
-                at {fmtPrice(s.price, s.currency as Currency)} · size {s.sizeFraction !== null ? `${Math.round(s.sizeFraction * 100)}% of equity` : "volatility-targeted"}
-                {s.stopLossPct !== null ? ` · stop ${(s.stopLossPct * 100).toFixed(1)}%` : ""}
-                {s.takeProfitPct !== null ? ` · take profit ${(s.takeProfitPct * 100).toFixed(1)}%` : ""}
-                {s.isSynthetic ? " · demo data" : s.marketOpen ? " · market open" : " · market closed"}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Panel>
-  );
-}
-
-/* ------------------------------------------------------------------------- */
-
-function Positions({ paper }: { paper: PaperState[] }) {
-  const open = paper.flatMap((p) => (p.portfolio.status === "running" ? p.positions.map((pos) => ({ pos, portfolio: p.portfolio, currency: (p.result?.currency ?? "AUD") as Currency })) : []));
-  return (
-    <Panel>
-      <PanelHeader title="Open positions" description="Across running simulated portfolios." aside={<SimulatedBadge />} />
-      {open.length === 0 ? (
-        <PanelBody>
-          <p className="text-sm text-ink-2">No open simulated positions.</p>
-        </PanelBody>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th scope="col">Portfolio</th>
-                <th scope="col">Instrument</th>
-                <th scope="col" className="num hidden sm:table-cell">Entry</th>
-                <th scope="col" className="num hidden sm:table-cell">Mark</th>
-                <th scope="col" className="num">Unrealised</th>
-              </tr>
-            </thead>
-            <tbody>
-              {open.map(({ pos, portfolio, currency }) => (
-                <tr key={`${portfolio.id}-${pos.asset}`}>
-                  <td>
-                    <Link href={`/paper?id=${portfolio.id}`} className="text-ink hover:underline underline-offset-2">
-                      {portfolio.name}
-                    </Link>
-                  </td>
-                  <td className="num text-ink-2">{pos.asset.split(":")[1] ?? pos.asset}</td>
-                  <td className="num hidden text-ink-2 sm:table-cell">{fmtPrice(pos.entryPrice, currency)}</td>
-                  <td className="num hidden text-ink-2 sm:table-cell">{fmtPrice(pos.markPrice, currency)}</td>
-                  <td className={cn("num", signClass(pos.unrealisedPnl))}>
-                    {fmtMoney(pos.unrealisedPnl, { cents: Math.abs(pos.unrealisedPnl) < 100, currency, sign: true })} <span className="text-ink-3">({fmtPct(pos.unrealisedPct, { sign: true })})</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="relative min-h-0 flex-1 overflow-y-auto">
+          <RankingList report={report} />
         </div>
       )}
+      {report ? (
+        <ProvenancePlate
+          source={report.source}
+          period={report.period}
+          timeframe={report.timeframe}
+          currency={report.currency}
+          market="ASX"
+        />
+      ) : null}
     </Panel>
   );
 }
 
-/* ------------------------------------------------------------------------- */
-
-function RecentExperiments({ recent, loading }: { recent: Experiment[]; loading: boolean }) {
+function RankingList({
+  report,
+  dense = false,
+}: {
+  report: BestStrategyReport;
+  dense?: boolean;
+}) {
   return (
-    <Panel>
-      <PanelHeader
-        title="Recent experiments"
-        aside={
-          <Link href="/journal" className="inline-flex items-center gap-1 text-xs text-ink-2 hover:text-ink">
-            Journal <ArrowRight className="size-3.5" aria-hidden />
-          </Link>
-        }
-      />
-      {loading ? (
-        <PanelBody>
-          <Skeleton className="h-4 w-2/3" />
-        </PanelBody>
-      ) : recent.length === 0 ? (
-        <PanelBody>
-          <p className="text-sm text-ink-2 leading-5">No experiments yet. The journal records every test so you stop re-running the same idea.</p>
-        </PanelBody>
-      ) : (
-        <ul className="divide-y divide-hairline">
-          {recent.map((e) => (
-            <li key={e.id}>
-              <Link href={`/journal/${e.id}`} className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-hover">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm text-ink">{e.name}</span>
-                    <span className="num text-2xs text-ink-3">v{e.version}</span>
-                    <span className="num text-2xs text-ink-3">{e.assets.map((a) => a.split(":")[1] ?? a).join("+")}</span>
-                  </div>
-                  <div className="num text-2xs text-ink-3">{fmtDate(e.createdAt)}</div>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span className={cn("num text-xs", signClass(e.result.metrics.totalReturnPct))}>{fmtPct(e.result.metrics.totalReturnPct, { sign: true })}</span>
-                  {e.result.verdict ? <VerdictBadge verdict={e.result.verdict} size="sm" /> : null}
-                </div>
-              </Link>
-            </li>
+    <ol className="divide-y divide-hairline">
+      {report.ranked.map((r) => (
+        <RankingRow key={r.kind} row={r} asset={report.asset} dense={dense} />
+      ))}
+    </ol>
+  );
+}
+
+function RankingRow({
+  row,
+  asset,
+  dense,
+}: {
+  row: RankedStrategy;
+  asset: string;
+  dense: boolean;
+}) {
+  const m = row.result.metrics;
+  return (
+    <li>
+      <Link
+        href={`/lab/build?kind=${row.kind}&asset=${encodeURIComponent(asset)}`}
+        className={cn(
+          "flex items-center gap-3 px-4 hover:bg-hover",
+          dense ? "py-2" : "py-2.5",
+        )}
+      >
+        <span
+          className={cn(
+            "num w-5 shrink-0 text-center text-xs",
+            row.rank === 1 ? "text-ink" : "text-ink-4",
+          )}
+        >
+          {row.rank}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="truncate text-sm text-ink">{row.name}</span>
+            {row.rank === 1 ? <Badge tone="up">Best</Badge> : null}
+          </span>
+          <span className="num block truncate text-2xs text-ink-3">
+            {m.tradeCount === 0
+              ? "no trades in this period"
+              : `${fmtInt(m.tradeCount)} trades · worst fall ${fmtPct(m.maxDrawdownPct)}${row.beatsHolding ? " · beat holding" : ""}`}
+          </span>
+        </span>
+        <span className="flex shrink-0 flex-col items-end">
+          <span className={cn("num text-sm", signClass(m.totalReturnPct))}>
+            {fmtPct(m.totalReturnPct, { sign: true })}
+          </span>
+          <span className="num text-2xs text-ink-3">
+            {row.score === null ? "–" : fmtNum(row.score)} risk-adj.
+          </span>
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+function RankingSheet({
+  report,
+  journal,
+  alerts,
+  onClose,
+}: {
+  report: BestStrategyReport;
+  journal: ReturnType<typeof buildLeaderboard>["rows"];
+  alerts: ReturnType<typeof deriveAlerts>;
+  onClose: () => void;
+}) {
+  const { best, meaning, symbol } = report;
+  return (
+    <Dialog
+      title={`${best.name} on ${symbol}`}
+      description={`Best of ${report.ranked.length} library strategies · ${fmtDate(report.period.start)} – ${fmtDate(report.period.end)} · daily bars`}
+      onClose={onClose}
+      size="lg"
+      footer={
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-2xs text-ink-3">
+            {report.source.isSynthetic
+              ? "Demo dataset. A result on it is not a tradable edge."
+              : report.source.label}
+          </span>
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full sm:w-auto"
+            asChild
+          >
+            <Link
+              href={`/lab/build?kind=${best.kind}&asset=${encodeURIComponent(report.asset)}`}
+            >
+              Test this on {symbol}{" "}
+              <ArrowRight className="size-4" weight="bold" aria-hidden />
+            </Link>
+          </Button>
+        </div>
+      }
+    >
+      <section>
+        <h3 className="text-xs font-medium uppercase tracking-wider text-ink-4">
+          What it is
+        </h3>
+        <p className="mt-1.5 text-sm leading-5 text-ink">{best.summary}</p>
+      </section>
+
+      <section className="mt-5">
+        <h3 className="text-xs font-medium uppercase tracking-wider text-ink-4">
+          What the result means
+        </h3>
+        <p className="mt-1.5 text-sm leading-5 text-ink">{meaning.headline}</p>
+        <ul className="mt-2.5 space-y-2">
+          {meaning.points.map((p) => (
+            <MeaningItem key={p.text} point={p} />
           ))}
         </ul>
-      )}
-    </Panel>
-  );
-}
+        <div className="mt-3 flex items-start gap-2.5 rounded-[var(--radius-md)] border border-hairline bg-raised px-3 py-2.5">
+          <VerdictBadge
+            verdict={report.assessment.verdict}
+            size="sm"
+            className="mt-px shrink-0"
+          />
+          <p className="text-xs leading-4 text-ink-2">{meaning.caveat}</p>
+        </div>
+      </section>
 
-/* ------------------------------------------------------------------------- */
+      <section className="mt-5">
+        <h3 className="text-xs font-medium uppercase tracking-wider text-ink-4">
+          How the ranking works
+        </h3>
+        <p className="mt-1.5 text-xs leading-4 text-ink-2">
+          {meaning.howRanked}
+        </p>
+        <div className="mt-2.5 -mx-5 border-y border-hairline">
+          <RankingList report={report} dense />
+        </div>
+      </section>
 
-function Alerts({ alerts }: { alerts: ReturnType<typeof deriveAlerts> }) {
-  return (
-    <Panel>
-      <PanelHeader title="What to look at next" description="Derived from your results. Nothing here is a recommendation to trade." />
-      {alerts.length === 0 ? (
-        <PanelBody>
-          <p className="text-sm text-ink-2">Nothing needs attention.</p>
-        </PanelBody>
-      ) : (
-        <ul className="divide-y divide-hairline">
-          {alerts.map((a) => (
-            <li key={a.id} className="flex items-start gap-3 px-4 py-2.5">
-              <span className={cn("mt-[7px] size-1.5 shrink-0 rounded-full", a.tone === "down" ? "bg-down" : a.tone === "warn" ? "bg-warn" : "bg-annot")} aria-hidden />
-              {a.href ? (
-                <Link href={a.href} className="text-sm text-ink-2 leading-5 hover:text-ink">
-                  {a.text}
+      {journal.length > 0 ? (
+        <section className="mt-5">
+          <h3 className="text-xs font-medium uppercase tracking-wider text-ink-4">
+            Your experiments
+          </h3>
+          <ol className="mt-1.5 divide-y divide-hairline">
+            {journal.slice(0, 5).map((r, i) => (
+              <li key={r.id}>
+                <Link
+                  href={r.href}
+                  className="flex items-center gap-3 py-2 hover:text-ink"
+                >
+                  <span className="num w-5 text-center text-xs text-ink-4">
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate text-sm text-ink">
+                        {r.name}
+                      </span>
+                      {r.verdict ? (
+                        <VerdictBadge verdict={r.verdict} size="sm" />
+                      ) : null}
+                    </span>
+                    <span className="num block text-2xs text-ink-3">
+                      {r.instrumentLabel}
+                    </span>
+                  </span>
+                  <span
+                    className={cn(
+                      "num text-sm",
+                      signClass(r.metrics.totalReturnPct),
+                    )}
+                  >
+                    {fmtPct(r.metrics.totalReturnPct, { sign: true })}
+                  </span>
                 </Link>
-              ) : (
-                <span className="text-sm text-ink-2 leading-5">{a.text}</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Panel>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
+
+      {alerts.length > 0 ? (
+        <section className="mt-5">
+          <h3 className="text-xs font-medium uppercase tracking-wider text-ink-4">
+            Worth a look
+          </h3>
+          <ul className="mt-1.5 space-y-1.5">
+            {alerts.map((a) => (
+              <li key={a.id} className="flex items-start gap-2.5">
+                <span
+                  className={cn(
+                    "mt-[7px] size-1.5 shrink-0 rounded-full",
+                    a.tone === "down"
+                      ? "bg-down"
+                      : a.tone === "warn"
+                        ? "bg-warn"
+                        : "bg-annot",
+                  )}
+                  aria-hidden
+                />
+                {a.href ? (
+                  <Link
+                    href={a.href}
+                    className="text-xs leading-4 text-ink-2 hover:text-ink"
+                  >
+                    {a.text}
+                  </Link>
+                ) : (
+                  <span className="text-xs leading-4 text-ink-2">{a.text}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <div className="mt-5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-2xs text-ink-4">
+        <Cell
+          label="Data"
+          value={
+            report.source.isSynthetic ? "DEMO · synthetic" : report.source.label
+          }
+          emphasis={report.source.isSynthetic ? "warn" : undefined}
+        />
+        <Cell label="Fills" value="next open" />
+        <Cell
+          label="Costs"
+          value={`${best.config.costs.feeFixed ?? 0} ${report.currency}/order · ${best.config.costs.slippageBps}bp slip`}
+        />
+      </div>
+      <div className="mt-3">
+        <SimulatedBadge />
+      </div>
+    </Dialog>
+  );
+}
+
+function MeaningItem({ point }: { point: MeaningPoint }) {
+  const dot =
+    point.tone === "up"
+      ? "bg-up"
+      : point.tone === "down"
+        ? "bg-down"
+        : point.tone === "warn"
+          ? "bg-warn"
+          : "bg-ink-3";
+  return (
+    <li className="flex items-start gap-2.5">
+      <span
+        className={cn("mt-[7px] size-1.5 shrink-0 rounded-full", dot)}
+        aria-hidden
+      />
+      <span className="text-sm leading-5 text-ink-2">{point.text}</span>
+    </li>
   );
 }

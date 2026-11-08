@@ -206,6 +206,14 @@ input[type="radio"] {
 }
 
 /* The one authored motion: a question or result settling into place. Visible by default; motion only enhances. */
+/* A screen that fits the viewport exactly: below the phone top bar and above the tab bar, inside the desktop padding. */
+@utility fit-screen {
+  height: calc(100dvh - 11rem);
+  @media (min-width: 1024px) {
+    height: calc(100dvh - 4.5rem);
+  }
+}
+
 @keyframes quiz-in {
   from {
     opacity: 0;

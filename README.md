@@ -79,7 +79,7 @@ No secret is ever read in client code.
 - `src/lib/market` — instruments, calendars, demo data, providers.
 - `src/lib/strategies` — the ten strategy definitions as validated data.
 - `src/lib/daily` — Today's Five.
-- `src/app` — routes: `/` Command Centre, `/markets`, `/lab` Strategies, `/arena`, `/paper` Portfolio, `/replay`, `/journal`, `/daily`, `/s/[code]` shared experiments.
+- `src/app` — routes: `/` Command Centre (best strategy for an instrument, explained, with the ranking behind a sheet), `/markets`, `/lab` Strategies, `/arena`, `/paper` Portfolio, `/replay`, `/journal`, `/daily`, `/s/[code]` shared experiments.
 
 ## Honesty notes
 

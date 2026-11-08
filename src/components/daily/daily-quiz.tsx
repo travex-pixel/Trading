@@ -224,7 +224,7 @@ export function DailyQuizGame({ autoStart = false }: { autoStart?: boolean }) {
   // scroll. Phone: below the top bar and above the tab bar. Desktop: capped
   // so the card does not stretch into a wall of space.
   return (
-    <div className="flex h-[calc(100dvh-10rem)] max-h-[760px] min-h-[520px] flex-col gap-3 lg:h-[calc(100dvh-4.5rem)]">
+    <div className="fit-screen flex max-h-[760px] min-h-[520px] flex-col gap-3">
       <Progress
         total={quiz.questions.length}
         index={index}
@@ -787,82 +787,5 @@ function QuizSkeleton() {
         <Skeleton className="mt-6 h-11 w-44" />
       </PanelBody>
     </Panel>
-  );
-}
-
-/* ------------------------------------------------------------------------- */
-/* Compact teaser for the Command Centre                                     */
-/* ------------------------------------------------------------------------- */
-
-export function DailyTeaser() {
-  const { quiz, loading, date } = useTodaysQuiz();
-  const { record } = useDailyRecord();
-  const day = record?.days[date] ?? null;
-  const streak = record ? computeStreak(record, date) : 0;
-  const completed = day?.completedAt != null;
-  const scored = quiz && day ? scoreQuiz(quiz, day.answers) : null;
-
-  if (loading || !quiz || record === null) {
-    return (
-      <div className="flex items-center justify-between gap-4 rounded-[var(--radius-md)] border border-hairline bg-panel px-4 py-3">
-        <div>
-          <Skeleton className="h-3.5 w-28" />
-          <Skeleton className="mt-2 h-3 w-48" />
-        </div>
-        <Skeleton className="h-9 w-20" />
-      </div>
-    );
-  }
-
-  return (
-    <Link
-      href="/daily"
-      className="group flex items-center justify-between gap-4 rounded-[var(--radius-md)] border border-hairline bg-panel px-4 py-3 transition-colors hover:border-border-strong hover:bg-hover"
-    >
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-ink">
-            Today&apos;s Five
-          </span>
-          {streak >= 2 ? (
-            <span className="inline-flex items-center gap-1 text-2xs font-medium text-warn">
-              <Fire className="size-3" aria-hidden /> {streak}-day streak
-            </span>
-          ) : null}
-        </div>
-        {completed && scored ? (
-          <div className="mt-1 flex items-center gap-2 text-xs text-ink-2">
-            <span className="num text-ink">
-              {scored.score}/{QUIZ_SIZE}
-            </span>
-            <span className="flex items-center gap-1" aria-hidden>
-              {scored.marks.map((m, i) => (
-                <span
-                  key={i}
-                  className={cn(
-                    "h-1.5 w-4 rounded-sm",
-                    m ? "bg-up" : "bg-down",
-                  )}
-                />
-              ))}
-            </span>
-            <span className="text-ink-3">· review the answers</span>
-          </div>
-        ) : (
-          <p className="mt-0.5 text-xs text-ink-2">
-            Five real results. Can you tell an edge from luck? About 2 minutes.
-          </p>
-        )}
-      </div>
-      <span
-        className={cn(
-          "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[var(--radius-md)] px-3.5 text-sm font-medium",
-          completed ? "border border-border text-ink" : "bg-ink text-ground",
-        )}
-      >
-        {completed ? "Review" : "Play"}{" "}
-        <ArrowRight className="size-3.5" aria-hidden />
-      </span>
-    </Link>
   );
 }

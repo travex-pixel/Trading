@@ -16,9 +16,9 @@ import {
   LinkSimple,
   PlayCircle,
   Wallet,
-  X,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { Field, Textarea } from "@/components/ui/field";
 import { ErrorState, Skeleton } from "@/components/ui/empty";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/panel";
@@ -202,9 +202,9 @@ export function Workbench() {
   const isStale = config !== deferredConfig || period !== deferredPeriod;
 
   return (
-    <div className="lg:grid lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-6 lg:items-start">
+    <div className="lg:fit-screen lg:grid lg:grid-cols-[380px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-6">
       {/* Builder */}
-      <div className="lg:sticky lg:top-6">
+      <div className="lg:relative lg:min-h-0 lg:overflow-y-auto lg:pr-1">
         <Panel>
           <PanelHeader
             title="Strategy"
@@ -252,7 +252,7 @@ export function Workbench() {
       </div>
 
       {/* Results */}
-      <div className="mt-5 space-y-5 lg:mt-0">
+      <div className="mt-5 space-y-5 lg:relative lg:mt-0 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
         {error ? (
           <ErrorState
             title="Market data unavailable"
@@ -826,52 +826,5 @@ function PaperDialog({
         </Button>
       </div>
     </Dialog>
-  );
-}
-
-export function Dialog({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="dlg-title"
-        className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[var(--radius-lg)] border border-border bg-panel p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-[0_20px_60px_rgba(0,0,0,0.5)] sm:rounded-[var(--radius-lg)] sm:pb-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 id="dlg-title" className="text-base font-semibold text-ink">
-            {title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="flex size-9 items-center justify-center rounded-full bg-raised text-ink-2 hover:bg-hover hover:text-ink"
-          >
-            <X className="size-4" weight="bold" aria-hidden />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
   );
 }

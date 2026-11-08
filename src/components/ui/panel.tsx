@@ -46,9 +46,9 @@ export function PanelBody({ className, children, ...props }: HTMLAttributes<HTML
 }
 
 /** Page heading row. */
-export function PageHeader({ title, description, actions }: { title: string; description?: ReactNode; actions?: ReactNode }) {
+export function PageHeader({ title, description, actions, className }: { title: string; description?: ReactNode; actions?: ReactNode; className?: string }) {
   return (
-    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className={cn("mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between", className)}>
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-ink">{title}</h1>
         {description ? <p className="mt-1 max-w-[62ch] text-sm text-ink-2">{description}</p> : null}

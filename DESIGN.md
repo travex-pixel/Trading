@@ -65,6 +65,10 @@ One authored moment: `quiz-in` (360ms, `--ease-out-quart`) when a question or re
 
 Plain English first ("the biggest fall from a previous high"), then the term. Controls name their action. Every simulated figure says simulated, and every demo figure says demo. No marketing adjectives, no kickers above headings, no em-dash cadence.
 
+## Screens that fit
+
+Home, Markets, Today's Five and the desktop Lab are sized to the viewport with the `fit-screen` utility (below the phone top bar and above the tab bar, inside the desktop padding). Long lists scroll inside their panel, never the page. Anything deeper than the first screen opens in a sheet: the full ranking and what it means, the guide, data connections, save and paper-trade forms.
+
 ## Navigation
 
-Phone: bottom bar with Home, Markets, Strategies, Arena, Portfolio (64px tall, safe-area aware, filled icon and tinted label on the active tab); Replay, Journal and Today's Five are reached from Home and the Lab. Desktop: 220px left rail with all eight destinations. Primary action on Home is a fixed button above the tab bar on phones and a header button on desktop.
+Phone: bottom bar with Home, Markets, Strategies, Arena, Portfolio (64px tall, safe-area aware, filled icon and tinted label on the active tab); Replay, Journal and Today's Five are reached from Home and the Lab. Desktop: 220px left rail with all eight destinations. Home opens on the best strategy for an instrument you switch with a segmented control, with one primary action: test it in the Lab. The guide is a sheet behind a "How it works" button on first visit.
