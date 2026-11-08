@@ -37,7 +37,7 @@ export function ProvenancePlate({
       <Cell label="Data" value={source.isSynthetic ? "DEMO · synthetic" : source.label} emphasis={source.isSynthetic ? "warn" : undefined} />
       <Cell label="Ver" value={source.version} />
       {period ? <Cell label="Period" value={`${fmtDate(period.start)} – ${fmtDate(period.end)}`} /> : null}
-      {timeframe ? <Cell label="Bars" value={`${bars ?? "–"} × ${timeframe}`} /> : null}
+      {timeframe ? <Cell label="Bars" value={bars !== undefined ? `${bars} × ${timeframe}` : timeframe} /> : null}
       {feeBps !== undefined ? <Cell label="Costs" value={`${feeBps}bp fee · ${slippageBps ?? 0}bp slip`} /> : null}
       <Cell label="Fills" value="next open" />
       {extra}
