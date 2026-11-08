@@ -5,9 +5,22 @@ import { Button } from "@/components/ui/button";
 import { ErrorState, Skeleton } from "@/components/ui/empty";
 import { PageHeader } from "@/components/ui/panel";
 import { SharedExperiment } from "@/components/lab/shared-experiment";
+import { describeSharedExperiment } from "@/lib/og/describe";
 import { decodeSnapshot } from "@/lib/store/snapshot";
 
-export const metadata: Metadata = { title: "Shared experiment" };
+/** Title and description travel with the link, so a WhatsApp or Messenger preview names the strategy and instrument. */
+export async function generateMetadata({ params }: PageProps<"/s/[code]">): Promise<Metadata> {
+  const { code } = await params;
+  const decoded = decodeSnapshot(code);
+  if (!decoded.ok) return { title: "Shared experiment", description: "This link cannot be opened." };
+  const d = describeSharedExperiment(decoded.snapshot);
+  return {
+    title: d.title,
+    description: d.subtitle,
+    openGraph: { title: `${d.title} · EdgeLab`, description: d.subtitle, type: "article", siteName: "EdgeLab", locale: "en_AU", url: `/s/${code}` },
+    twitter: { card: "summary_large_image", title: `${d.title} · EdgeLab`, description: d.subtitle },
+  };
+}
 
 /** `params` is runtime data under Cache Components, so it is read inside a Suspense boundary. */
 export default function SharePage({ params }: PageProps<"/s/[code]">) {

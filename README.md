@@ -60,6 +60,7 @@ Everything is optional. See `.env.example`.
 | `MARKET_DATA_PROVIDER` | server | `coinbase` enables keyless crypto candles when EODHD is not configured. |
 | `ANTHROPIC_API_KEY` | server | Enables Claude's review in the research assistant on top of the deterministic analysts. |
 | `ANTHROPIC_MODEL` | server | Model for the review. Default `claude-opus-5-5`. |
+| `NEXT_PUBLIC_SITE_URL` | client | Absolute origin for link-preview images (WhatsApp, Messenger, X). Optional on Vercel, where the production host is detected. |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client | Reserved for the optional Supabase persistence layer (see `supabase/schema.sql`). Not wired in this release, so data stays in the browser. |
 
 No secret is ever read in client code.

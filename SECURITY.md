@@ -9,7 +9,7 @@ EdgeLab is a research and simulation product. It must be safe to develop, deploy
 - No user-authored executable code. Strategies are Zod-validated data, and `eval`, `new Function`, dynamic `import()` of user input and template evaluation are never used.
 - No AI-initiated shell, filesystem or network access. The optional AI layer receives a structured summary and returns a schema-validated object.
 - No telemetry, analytics or third-party scripts.
-- No API keys in the browser. The only `NEXT_PUBLIC_` variables are the optional Supabase URL and anon key, which are designed to be public.
+- No API keys in the browser. The only `NEXT_PUBLIC_` variables are the optional site origin used for link previews and the optional Supabase URL and anon key, all of which are designed to be public.
 
 ## Controls
 
