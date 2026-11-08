@@ -152,7 +152,7 @@ export function PortfolioDetail({
           <Panel>
             <PanelHeader title={`Open positions (${state.positions.length})`} aside={<SimulatedBadge />} />
             {state.positions.length === 0 ? (
-              <PanelBody className="text-sm text-ink-3">{running ? "In cash. The strategy has no open position at the current bar." : "No open positions; the portfolio is stopped."}</PanelBody>
+              <PanelBody className="text-sm text-ink-3">{running ? "In cash. The strategy has no open position at the current bar." : "No open positions. The portfolio is stopped."}</PanelBody>
             ) : (
               <div className="overflow-x-auto">
                 <table className="table min-w-[640px]">

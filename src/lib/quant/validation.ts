@@ -486,7 +486,7 @@ export function assessEdge(args: {
       findings.push({
         severity: "critical",
         title: "Does not beat buy and hold",
-        detail: `Buy and hold returned ${fmtPct(b.totalReturnPct)} with Sharpe ${fmtNum(b.sharpe)}; this strategy returned ${fmtPct(m.totalReturnPct)} with Sharpe ${fmtNum(m.sharpe)}. The activity is not paying for itself.`,
+        detail: `Buy and hold returned ${fmtPct(b.totalReturnPct)} with Sharpe ${fmtNum(b.sharpe)}. This strategy returned ${fmtPct(m.totalReturnPct)} with Sharpe ${fmtNum(m.sharpe)}. The activity is not paying for itself.`,
       });
       score -= 2;
     }

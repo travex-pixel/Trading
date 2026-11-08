@@ -13,7 +13,7 @@ const STEPS = [
   { title: "Run a backtest", body: "Adjust the controls and watch the result update. Fills happen at the next bar's open, after fees.", href: "/lab/build", cta: "Build" },
   { title: "Read the result", body: "Max drawdown is the biggest fall from a previous high. The verdict badge says whether the edge is real or just lucky.", href: "/lab/build?kind=ma_crossover", cta: "Example" },
   { title: "Find the weaknesses", body: "The Validation tab re-chooses parameters on past data only and trades them forward. Overfit ideas fall apart here.", href: "/lab/build?kind=ma_crossover", cta: "Validate" },
-  { title: "Paper trade it", body: "Follow a strategy forward with virtual capital. Every position is simulated; nothing is ever sent to an exchange.", href: "/paper", cta: "Paper" },
+  { title: "Paper trade it", body: "Follow a strategy forward with virtual capital. Every position is simulated and nothing is ever sent to an exchange.", href: "/paper", cta: "Paper" },
 ];
 
 const EVENT = "edgelab:onboarding";

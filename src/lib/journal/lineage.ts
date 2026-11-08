@@ -103,7 +103,7 @@ export const PARAM_LABELS: Record<string, string> = {
 };
 
 export function describeChanges(changes: ParamChange[]): string {
-  if (changes.length === 0) return "No parameter changes since the previous version; only the period or data differed.";
+  if (changes.length === 0) return "No parameter changes since the previous version. Only the period or the data differed.";
   const parts = changes.map((c) => `${PARAM_LABELS[c.key] ?? c.key} ${c.from} → ${c.to}`);
   return `Changed ${parts.join(", ")}.`;
 }

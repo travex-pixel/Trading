@@ -32,7 +32,7 @@ export function researchAnalyst(run: LabRun): Statement[] {
     out.push(sp(`With ${m.tradeCount} trades the sample is thin. Testing the same rule on the ${run.config.timeframe === "1d" ? "4h" : "1h"} timeframe would multiply the trade count and show whether the idea or the sample is doing the work.`));
   }
   if (m.exposurePct < 35) {
-    out.push(sp(`The strategy was invested only ${pct(m.exposurePct, false)} of the time. If the edge is real, a less selective entry might capture more of it; if it is not, more exposure will reveal that quickly.`));
+    out.push(sp(`The strategy was invested only ${pct(m.exposurePct, false)} of the time. If the edge is real, a less selective entry might capture more of it. If it is not, more exposure will show that quickly.`));
   }
   if (kind === "ma_crossover" || kind === "macd_momentum" || kind === "tsmom") {
     out.push(sp("Trend rules of this family usually improve when a volatility filter keeps them out of quiet chop. That is a hypothesis to test, not a result."));
@@ -61,7 +61,7 @@ export function technicalAnalyst(run: LabRun): Statement[] {
     out.push(ev(`The average position lasted ${hours < 48 ? `${Math.round(hours)} hours` : `${(hours / 24).toFixed(1)} days`} across ${m.tradeCount} trades.`));
   }
   if (down && down.strategyReturnPct > down.marketReturnPct + 5) out.push(sp("Most of the value over buy and hold appears to come from stepping aside in downtrends rather than from catching more upside."));
-  else if (m.totalReturnPct > b.totalReturnPct && up && up.exposurePct > 80) out.push(sp("The strategy rode uptrends almost fully invested; its edge over buy and hold rests on what it did outside them."));
+  else if (m.totalReturnPct > b.totalReturnPct && up && up.exposurePct > 80) out.push(sp("The strategy rode uptrends almost fully invested, so its edge over buy and hold rests on what it did outside them."));
   return out.slice(0, 5);
 }
 
@@ -71,11 +71,11 @@ export function quantResearcher(run: LabRun): Statement[] {
   const wf = run.validation?.walkForward ?? null;
   const days = Math.round((run.result.period.end - run.result.period.start) / 86_400_000);
   out.push(ev(`The test covers ${days} days on ${run.result.source.isSynthetic ? "the synthetic demo dataset" : run.result.source.label} (version ${run.result.source.version}) at ${run.config.timeframe} bars, with ${m.tradeCount} completed trades.`));
-  if (m.sharpe !== null) out.push(ev(`Sharpe ${num(m.sharpe)} and Sortino ${num(m.sortino)}; buy and hold scored ${num(run.benchmarks.buyAndHold.metrics.sharpe)}.`));
+  if (m.sharpe !== null) out.push(ev(`Sharpe ${num(m.sharpe)} and Sortino ${num(m.sortino)}. Buy and hold scored a Sharpe of ${num(run.benchmarks.buyAndHold.metrics.sharpe)}.`));
   else out.push(ev("Sharpe is not estimable for this period, so risk-adjusted comparisons are not available."));
   if (wf && wf.folds.length) {
     const positive = wf.folds.filter((f) => f.testMetrics.totalReturnPct > 0).length;
-    out.push(ev(`Walk-forward: ${positive} of ${wf.folds.length} out-of-sample windows were profitable; stitched out-of-sample Sharpe ${num(wf.stitchedMetrics.sharpe)} against in-sample ${num(wf.inSampleMetrics.sharpe)}.`));
+    out.push(ev(`Walk-forward: ${positive} of ${wf.folds.length} out-of-sample windows were profitable. Stitched out-of-sample Sharpe was ${num(wf.stitchedMetrics.sharpe)} against ${num(wf.inSampleMetrics.sharpe)} in sample.`));
     if (wf.stitchedMetrics.sharpe !== null && wf.inSampleMetrics.sharpe !== null && wf.inSampleMetrics.sharpe > 0) {
       const deg = 1 - wf.stitchedMetrics.sharpe / wf.inSampleMetrics.sharpe;
       out.push(deg > 0.5 ? sp("A degradation this large usually means the chosen parameters fit the past rather than a persistent effect.") : sp("The out-of-sample result holding up is the strongest single piece of evidence here, though one dataset is still one dataset."));
@@ -91,13 +91,13 @@ export function riskAnalyst(run: LabRun): Statement[] {
   const out: Statement[] = [];
   const m = run.result.metrics;
   const b = run.benchmarks.buyAndHold.metrics;
-  out.push(ev(`Maximum drawdown ${pct(-m.maxDrawdownPct)} versus ${pct(-b.maxDrawdownPct)} for buy and hold; the worst losing streak was ${m.maxConsecutiveLosses} trades in a row.`));
+  out.push(ev(`Maximum drawdown ${pct(-m.maxDrawdownPct)} versus ${pct(-b.maxDrawdownPct)} for buy and hold. The worst losing streak was ${m.maxConsecutiveLosses} trades in a row.`));
   const feeShare = (m.totalFees / run.result.assumptions.initialCapital) * 100;
   out.push(ev(`Fees and slippage consumed ${pct(feeShare, false)} of starting capital (${run.result.assumptions.feeBps} bp fee and ${run.result.assumptions.slippageBps} bp slippage per side).`));
   if (m.maxDrawdownPct > 40) out.push(sp(`A ${Math.round(m.maxDrawdownPct)}% fall is the kind most people abandon halfway through. Ask whether you would have kept following the rules at the bottom.`));
   if (m.maxConsecutiveLosses >= 6) out.push(sp(`${m.maxConsecutiveLosses} consecutive losses is a realistic stretch for this rule. Position sizing that survives it matters more than the entry.`));
   if (feeShare > 10) out.push(sp("Costs this high make the result hostage to the fee assumption. Halving trade frequency is a cheaper fix than finding a better signal."));
-  if (run.config.risk.stopLossPct === null && m.maxDrawdownPct > b.maxDrawdownPct * 0.8) out.push(sp("There is no stop loss. Adding one usually trades a slightly lower return for a materially shallower worst case; the trade-off is testable."));
+  if (run.config.risk.stopLossPct === null && m.maxDrawdownPct > b.maxDrawdownPct * 0.8) out.push(sp("There is no stop loss. Adding one usually trades a slightly lower return for a materially shallower worst case. You can test that trade-off here."));
   return out.slice(0, 5);
 }
 
@@ -107,7 +107,7 @@ export function independentReviewer(run: LabRun): Statement[] {
   const b = run.benchmarks.buyAndHold.metrics;
   const mom = run.benchmarks.momentum.metrics;
   if (m.totalReturnPct > b.totalReturnPct) {
-    out.push(sp("The strategy beat buy and hold over this window. Shift the start date by a few months and check whether the ranking survives; many 'edges' are a start-date artefact."));
+    out.push(sp("The strategy beat buy and hold over this window. Shift the start date by a few months and check whether the ranking survives. Many 'edges' turn out to be a start-date artefact."));
   } else {
     out.push(ev(`Buy and hold returned ${pct(b.totalReturnPct)} and this strategy ${pct(m.totalReturnPct)}. The burden of proof is on the strategy, and it has not met it here.`));
   }
@@ -134,7 +134,7 @@ export function suggestExperiments(run: LabRun): SuggestedExperiment[] {
     if (best) {
       out.push({
         title: `Move ${s.param.key} from ${s.param.value} to ${best.value}`,
-        rationale: `Nearby values perform very differently. ${best.value} scored best among the neighbours; see whether the result is a plateau or another spike.`,
+        rationale: `Nearby values perform very differently. ${best.value} scored best among the neighbours. Check whether that result is a plateau or just another spike.`,
         paramPatch: { [s.param.key]: best.value },
       });
     }
@@ -172,14 +172,14 @@ export function ruleBasedReview(run: LabRun): AIReview {
   const m = run.result.metrics;
   const b = run.benchmarks.buyAndHold.metrics;
   const summary = [
-    `${run.config.name} returned ${pct(m.totalReturnPct)} with a ${pct(-m.maxDrawdownPct, false)} maximum drawdown over ${m.tradeCount} trades; buy and hold returned ${pct(b.totalReturnPct)} with ${pct(-b.maxDrawdownPct, false)}.`,
+    `${run.config.name} returned ${pct(m.totalReturnPct)} with a ${pct(-m.maxDrawdownPct, false)} maximum drawdown over ${m.tradeCount} trades. Buy and hold returned ${pct(b.totalReturnPct)} with a ${pct(-b.maxDrawdownPct, false)} drawdown.`,
     run.assessment.headline,
     run.validation ? "Walk-forward and sensitivity results are included below." : "Run the full validation to test for overfitting before drawing conclusions.",
   ].join(" ");
   const limitations = [
     run.result.source.isSynthetic ? "All figures come from the deterministic demo dataset, not live markets." : `Data source: ${run.result.source.label}.`,
     "One asset, one period, one dataset: results describe the past and do not forecast.",
-    "Execution assumes fills at the next bar's open with fixed slippage; real fills vary.",
+    "Execution assumes fills at the next bar's open with fixed slippage. Real fills vary.",
   ];
   if (!run.validation) limitations.push("No out-of-sample test has been run yet.");
   return {
@@ -205,7 +205,7 @@ export function runBrief(run: LabRun): string {
     `Verdict: ${run.assessment.verdict}. Findings: ${run.assessment.findings.map((f) => `[${f.severity}] ${f.title}: ${f.detail}`).join(" ")}`,
   ];
   const wf = run.validation?.walkForward;
-  if (wf) lines.push(`Walk-forward (${wf.folds.length} folds): in-sample Sharpe ${num(wf.inSampleMetrics.sharpe)}, out-of-sample stitched Sharpe ${num(wf.stitchedMetrics.sharpe)}, OOS return ${pct(wf.stitchedMetrics.totalReturnPct)}; profitable test windows ${wf.folds.filter((f) => f.testMetrics.totalReturnPct > 0).length}.`);
+  if (wf) lines.push(`Walk-forward (${wf.folds.length} folds): in-sample Sharpe ${num(wf.inSampleMetrics.sharpe)}, out-of-sample stitched Sharpe ${num(wf.stitchedMetrics.sharpe)}, OOS return ${pct(wf.stitchedMetrics.totalReturnPct)}, profitable test windows ${wf.folds.filter((f) => f.testMetrics.totalReturnPct > 0).length}.`);
   const sens = run.validation?.sensitivity;
   if (sens?.length) lines.push(`Sensitivity stability: ${sens.map((s) => `${s.param.key} ${(s.stability * 100).toFixed(0)}%`).join(", ")}.`);
   return lines.join("\n");

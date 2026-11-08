@@ -50,7 +50,7 @@ export function providerStatus(): ProviderStatus {
   const eod = eodhdToken() !== null;
   const cb = coinbaseEnabled();
   const pick = (market: MarketId): ProviderStatus["perMarket"][MarketId] => {
-    if (eod) return { provider: "eodhd", label: "EODHD historical data (end of day adjusted; intraday unadjusted; quotes delayed 15–20 min)", isSynthetic: false };
+    if (eod) return { provider: "eodhd", label: "EODHD historical data (end of day adjusted, intraday unadjusted, quotes delayed 15–20 min)", isSynthetic: false };
     if (cb && market === "CRYPTO") return { provider: "coinbase", label: "Coinbase Exchange public candles", isSynthetic: false };
     return { provider: "demo", label: DEMO_SOURCE.label, isSynthetic: true };
   };

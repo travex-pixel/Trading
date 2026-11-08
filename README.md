@@ -24,7 +24,7 @@ Open http://localhost:3000. No credentials are needed: the app ships with a dete
 | Crypto | Operational | BTC, ETH, SOL | USD | 24/7 UTC | 10 bp fee, 5 bp slippage |
 | Forex | Not available | | | | |
 
-Trading calendars (Sydney and New York daylight saving, ASX and NYSE public holidays, session hours) live in `src/lib/market/calendar.ts`; the instrument registry and per-market assumptions in `src/lib/market/instruments.ts`. Annualised metrics use 252 trading days for equities and 365 for crypto. All strategies are long-only; short selling is stated as not modelled.
+Trading calendars (Sydney and New York daylight saving, ASX and NYSE public holidays, session hours) live in `src/lib/market/calendar.ts`. The instrument registry and per-market assumptions live in `src/lib/market/instruments.ts`. Annualised metrics use 252 trading days for equities and 365 for crypto. All strategies are long-only, and short selling is stated as not modelled.
 
 ## Market data
 
@@ -34,7 +34,7 @@ The engine is provider-independent. `src/lib/market/provider.ts` resolves each i
 2. **Coinbase Exchange** public candles for crypto when `MARKET_DATA_PROVIDER=coinbase` (no key).
 3. **Demo dataset**: deterministic, synthetic, session-aware, labelled.
 
-Provider research (pages read directly in November 2026): Twelve Data's free Basic tier is "internal non-display usage" only and ASX is a paid data add-on on a paid plan, so it was not selected. Alpaca covers US stocks, ETFs and crypto only, not the ASX. EODHD covers ASX end-of-day history on its lowest paid tier (free tier: 20 calls per day on a limited symbol set) and intraday for AU on the Extended tier. No subscription has been purchased; connecting a provider is your decision.
+Provider research (pages read directly in November 2026): Twelve Data's free Basic tier is "internal non-display usage" only and ASX is a paid data add-on on a paid plan, so it was not selected. Alpaca covers US stocks, ETFs and crypto only, not the ASX. EODHD covers ASX end-of-day history on its lowest paid tier (free tier: 20 calls per day on a limited symbol set) and intraday for AU on the Extended tier. No subscription has been purchased. Connecting a provider is your decision.
 
 The Markets page shows which provider serves each market right now, and the Command Centre, Lab and every chart carry a provenance plate.
 
@@ -60,7 +60,7 @@ Everything is optional. See `.env.example`.
 | `MARKET_DATA_PROVIDER` | server | `coinbase` enables keyless crypto candles when EODHD is not configured. |
 | `ANTHROPIC_API_KEY` | server | Enables Claude's review in the research assistant on top of the deterministic analysts. |
 | `ANTHROPIC_MODEL` | server | Model for the review. Default `claude-opus-5-5`. |
-| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client | Reserved for the optional Supabase persistence layer (see `supabase/schema.sql`). Not wired in this release; data is browser-local. |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client | Reserved for the optional Supabase persistence layer (see `supabase/schema.sql`). Not wired in this release, so data stays in the browser. |
 
 No secret is ever read in client code.
 
@@ -83,6 +83,6 @@ No secret is ever read in client code.
 ## Honesty notes
 
 - The demo dataset is a seeded random process with regimes, volatility clustering, jumps and overnight gaps, calibrated to plausible equity and crypto behaviour. **A result on it is not a tradable edge.** Dividends and corporate actions are not modelled in demo data.
-- Annualised return is hidden for periods under 180 days; Sharpe and Sortino are hidden with fewer than 30 bars; trade statistics are flagged below 30 trades.
-- Shared links contain the configuration and period, not results; the recipient recomputes them.
+- Annualised return is hidden for periods under 180 days. Sharpe and Sortino are hidden with fewer than 30 bars, and trade statistics are flagged below 30 trades.
+- Shared links carry the configuration and period, not the results. The recipient's browser recomputes them.
 - Seeded Arena participants are bots and are labelled as bots. Simulated positions are labelled simulated.

@@ -346,7 +346,7 @@ export function SensitivityPanel({ reports }: { reports: SensitivityReport[] }) 
   if (reports.length === 0) return null;
   return (
     <Panel>
-      <PanelHeader title="Parameter sensitivity" description="Each parameter nudged around your value while the others stay fixed. A real edge is a plateau; a spike at one exact setting is a warning." />
+      <PanelHeader title="Parameter sensitivity" description="Each parameter nudged around your value while the others stay fixed. A real edge looks like a plateau. A spike at one exact setting is a warning." />
       <PanelBody className="grid gap-6 sm:grid-cols-2">
         {reports.map((r) => (
           <SensitivityBars key={r.param.key} report={r} />

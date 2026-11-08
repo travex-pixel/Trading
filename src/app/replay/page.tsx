@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Trade Replay" };
 export default function ReplayPage() {
   return (
     <div>
-      <PageHeader title="Trade Replay" description="Watch a strategy trade bar by bar. The strategy only ever saw bars to the left of the cursor; every fill happens at the next bar's open." />
+      <PageHeader title="Trade Replay" description="Watch a strategy trade bar by bar. The strategy only ever saw the bars to the left of the cursor, and every fill happens at the next bar's open." />
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
         <Replay />
       </Suspense>

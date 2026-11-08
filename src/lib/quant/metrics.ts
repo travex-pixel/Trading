@@ -235,7 +235,7 @@ export const METRIC_DEFINITIONS: Record<keyof PerformanceMetrics, { label: strin
   maxDrawdownTroughTime: { label: "Drawdown trough", plain: "When the biggest fall bottomed." },
   sharpe: {
     label: "Sharpe ratio",
-    plain: "Is the strategy making money for the amount of risk it takes? Above 1 is good; above 2 is rare and deserves suspicion.",
+    plain: "Is the strategy making money for the amount of risk it takes? Above 1 is good. Above 2 is rare and deserves suspicion.",
     caveat: "Assumes returns are roughly normal, which crypto returns are not. Treat as a rough guide.",
   },
   sortino: { label: "Sortino ratio", plain: "Like Sharpe, but only counts downside swings as risk." },

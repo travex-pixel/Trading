@@ -94,7 +94,7 @@ export const STRATEGY_LIBRARY: Record<StrategyKind, StrategyMeta> = {
     name: "MACD momentum",
     summary: "Buy when short-term momentum turns positive relative to its own trend. Sell when it turns negative.",
     explanation:
-      "MACD is the gap between a fast and a slow exponential average. A signal line smooths that gap. When MACD crosses above its signal line, momentum is accelerating; the strategy buys. When it crosses below, momentum is fading; the strategy sells.",
+      "MACD is the gap between a fast and a slow exponential average. A signal line smooths that gap. When MACD crosses above its signal line, momentum is accelerating and the strategy buys. When it crosses below, momentum is fading and the strategy sells.",
     entryRule: "MACD line crosses above its signal line.",
     exitRule: "MACD line crosses below its signal line, or a stop or take-profit is hit.",
     weaknesses: [
@@ -142,13 +142,13 @@ export const STRATEGY_LIBRARY: Record<StrategyKind, StrategyMeta> = {
     name: "Volatility breakout",
     summary: "Buy when price jumps more than usual in one bar, hold for a fixed number of bars, then exit.",
     explanation:
-      "The strategy compares each bar's move with the recent Average True Range. A close more than K ATRs above the previous close is an unusually strong move; the strategy buys it and holds for a fixed horizon, betting the surge continues briefly.",
+      "The strategy compares each bar's move with the recent Average True Range. A close more than K ATRs above the previous close is an unusually strong move. The strategy buys it and holds for a fixed horizon, betting the surge continues briefly.",
     entryRule: "Close minus previous close exceeds K times ATR.",
     exitRule: "Fixed holding period elapses, or a stop or take-profit is hit.",
     weaknesses: [
       "Buys exhaustion spikes as often as genuine breakouts.",
       "The fixed holding period ignores what the market does after entry.",
-      "Highly sensitive to the ATR multiple; small changes flip results.",
+      "Highly sensitive to the ATR multiple. Small changes flip the result.",
     ],
     benchmark: false,
     defaults: base("Vol breakout 1.5 ATR", { kind: "volatility_breakout", atrPeriod: 14, atrMultiple: 1.5, holdBars: 5 }),
@@ -158,7 +158,7 @@ export const STRATEGY_LIBRARY: Record<StrategyKind, StrategyMeta> = {
     name: "Buy and hold",
     summary: "Buy on the first bar and never sell. The benchmark every active strategy must beat.",
     explanation:
-      "Buy and hold is the honest baseline. It pays fees once, is always exposed, and captures every rally and every crash. An active strategy that cannot beat it after costs on a risk-adjusted basis has not found an edge; it has found activity.",
+      "Buy and hold is the honest baseline. It pays fees once, is always exposed, and captures every rally and every crash. An active strategy that cannot beat it after costs on a risk-adjusted basis has not found an edge. It has found activity.",
     entryRule: "Buy on the first bar.",
     exitRule: "Never. Positions close only at the end of the data.",
     weaknesses: [
@@ -177,7 +177,7 @@ export const STRATEGY_LIBRARY: Record<StrategyKind, StrategyMeta> = {
     entryRule: "At rebalance, the asset with the highest trailing return above the minimum.",
     exitRule: "At rebalance, when another asset leads or none qualifies.",
     weaknesses: [
-      "With only two assets the choice is nearly binary; diversification is minimal.",
+      "With only two assets the choice is nearly binary, so there is little diversification.",
       "Rotates into assets just as their momentum peaks.",
       "Rebalance frequency and lookback are easy to overfit.",
     ],
@@ -448,7 +448,7 @@ function prepareVolBreakout(config: StrategyConfig, series: Record<AssetId, Cand
         };
       }
       if (pos && i - pos.entryIndex >= p.holdBars) {
-        return { targets: { [asset]: 0 }, note: `Held for ${p.holdBars} bars; the holding period is over.` };
+        return { targets: { [asset]: 0 }, note: `Held for ${p.holdBars} bars. The holding period is over.` };
       }
       return flatSignal();
     },
@@ -508,7 +508,7 @@ function prepareRotation(config: StrategyConfig, series: Record<AssetId, Candle[
       }
       const anyHeld = config.assets.some((a) => held(ctx, a));
       if (!anyHeld) return { targets: {}, note: null };
-      return { targets, note: `Rebalance: ${parts.join(", ")}. No asset clears the minimum; moving to cash.` };
+      return { targets, note: `Rebalance: ${parts.join(", ")}. No asset clears the minimum, so the strategy moves to cash.` };
     },
   };
 }
@@ -528,7 +528,7 @@ function prepareTsmom(config: StrategyConfig, series: Record<AssetId, Candle[]>)
       if (r === null) return flatSignal();
       const isHeld = held(ctx, asset);
       if (!isHeld && r > 0) return { targets: { [asset]: 1 }, note: `Price is ${fmt(r * 100, 1)}% above its level ${p.lookback} bars ago.` };
-      if (isHeld && r <= 0) return { targets: { [asset]: 0 }, note: `Price is ${fmt(r * 100, 1)}% versus ${p.lookback} bars ago; momentum is negative.` };
+      if (isHeld && r <= 0) return { targets: { [asset]: 0 }, note: `Price is ${fmt(r * 100, 1)}% versus ${p.lookback} bars ago, so momentum is negative.` };
       return flatSignal();
     },
   };

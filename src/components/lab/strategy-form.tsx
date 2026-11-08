@@ -101,7 +101,7 @@ export function StrategyForm({ config, onChange, errors = [] }: { config: Strate
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Timeframe" hint={market === "CRYPTO" ? "Bar size the strategy reads. Crypto trades 24/7." : `Bar size the strategy reads. Daily bars are the natural unit for ${spec.shortName} equities; intraday bars only cover the session.`}>
+        <Field label="Timeframe" hint={market === "CRYPTO" ? "Bar size the strategy reads. Crypto trades 24/7." : `Bar size the strategy reads. Daily bars are the natural unit for ${spec.shortName} equities. Intraday bars only cover the session.`}>
           <Segmented<Timeframe>
             label="Timeframe"
             value={config.timeframe}
@@ -262,7 +262,7 @@ export function StrategyForm({ config, onChange, errors = [] }: { config: Strate
             </div>
           ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
-            <NumberField id="feefixed" label="Brokerage per order" unit={currency} hint={market === "ASX" ? "Flat fee per order, the norm for Australian brokers." : "Flat fee per order; many brokers charge none."} value={config.costs.feeFixed ?? 0} min={0} max={200} step={0.5} onChange={(feeFixed) => setCosts({ feeFixed })} />
+            <NumberField id="feefixed" label="Brokerage per order" unit={currency} hint={market === "ASX" ? "Flat fee per order, the norm for Australian brokers." : "Flat fee per order. Many brokers charge none."} value={config.costs.feeFixed ?? 0} min={0} max={200} step={0.5} onChange={(feeFixed) => setCosts({ feeFixed })} />
             <NumberField id="fee" label="Fee per side" unit="bp" hint="Percentage commission. 10 bp = 0.10%." value={config.costs.feeBps} min={0} max={100} step={1} onChange={(feeBps) => setCosts({ feeBps })} />
             <NumberField id="slip" label="Slippage per side" unit="bp" value={config.costs.slippageBps} min={0} max={100} step={1} onChange={(slippageBps) => setCosts({ slippageBps })} />
             <NumberField id="cap" label="Starting capital" unit={currency} value={config.initialCapital} min={100} max={10_000_000} step={100} onChange={(initialCapital) => onChange({ ...config, initialCapital })} />

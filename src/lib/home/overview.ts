@@ -76,9 +76,9 @@ export interface RegimeSummary {
 }
 
 const REGIME_SENTENCES: Record<Regime, string> = {
-  uptrend: "The index is above a rising trend. Trend-following rules are in their element; mean-reversion entries fight the tide.",
-  downtrend: "The index is below a falling trend. Long-only strategies sit in cash or bleed; buy-and-hold is taking the full fall.",
-  sideways: "No clear trend in the index. Crossover and breakout rules whipsaw here; mean reversion has the best odds.",
+  uptrend: "The index is above a rising trend. Trend-following rules are in their element, while mean-reversion entries fight the tide.",
+  downtrend: "The index is below a falling trend. Long-only strategies sit in cash or bleed, and buy and hold is taking the full fall.",
+  sideways: "No clear trend in the index. Crossover and breakout rules whipsaw here, so mean reversion has the best odds.",
   high_volatility: "Index volatility is far above its norm. Stops get hit, fills slip, and every backtest assumption is under stress.",
 };
 

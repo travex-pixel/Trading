@@ -88,7 +88,7 @@ export function Replay() {
   return (
     <div className="space-y-5">
       <Panel>
-        <PanelHeader title={initial.fromLab ? `Replaying ${config.name}` : "Choose what to replay"} description={initial.fromLab ? "Opened from the Lab with its exact configuration and period." : "Library defaults; open a configured strategy from the Lab for its exact settings."} />
+        <PanelHeader title={initial.fromLab ? `Replaying ${config.name}` : "Choose what to replay"} description={initial.fromLab ? "Opened from the Lab with its exact configuration and period." : "These are the library defaults. Open a configured strategy from the Lab to replay its exact settings."} />
         <PanelBody className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_auto_auto_minmax(0,2fr)] lg:items-end">
           <Field label="Strategy" htmlFor="rp-kind">
             <Select id="rp-kind" value={config.params.kind} onChange={(e) => setKind(e.target.value as StrategyKind)}>

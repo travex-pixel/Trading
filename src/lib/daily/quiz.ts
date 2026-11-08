@@ -211,7 +211,7 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
       answerIndex: beat ? 0 : 1,
       lesson: beat
         ? `Yes: buy and hold made ${pct(bh.metrics.totalReturnPct)} with a ${pct(-bh.metrics.maxDrawdownPct)} worst fall, so the strategy earned its activity here. One window is still one window.`
-        : `No: buy and hold made ${pct(bh.metrics.totalReturnPct)}. A positive return is not an edge; beating the thing you could have done for free is the minimum bar.`,
+        : `No: buy and hold made ${pct(bh.metrics.totalReturnPct)}. A positive return is not an edge. Beating the thing you could have done for free is the minimum bar.`,
       evidence: [`Strategy ${pct(c.result.metrics.totalReturnPct)} · Sharpe ${num(c.result.metrics.sharpe)} · ${c.result.metrics.tradeCount} trades`, `Buy and hold ${pct(bh.metrics.totalReturnPct)} · Sharpe ${num(bh.metrics.sharpe)} · max DD ${pct(-bh.metrics.maxDrawdownPct)}`],
       labCode: labCode(c.config, period, dataVersion),
     });
@@ -300,7 +300,7 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
       figure: { type: "stats", rows: [row("A", a), row("B", b)] },
       choices: [{ label: "A", detail: a.meta.name }, { label: "B", detail: b.meta.name }],
       answerIndex,
-      lesson: `${answerIndex === 0 ? "A" : "B"} (${(answerIndex === 0 ? a : b).meta.name}) had the higher Sharpe ratio, ${num(Math.max(sa, sb))} against ${num(Math.min(sa, sb))}. Return is what you see; the swings along the way are what you pay for it.`,
+      lesson: `${answerIndex === 0 ? "A" : "B"} (${(answerIndex === 0 ? a : b).meta.name}) had the higher Sharpe ratio, ${num(Math.max(sa, sb))} against ${num(Math.min(sa, sb))}. Return is what you see. The swings along the way are what you pay for it.`,
       evidence: [`A · ${a.meta.name} · Sharpe ${num(sa)}`, `B · ${b.meta.name} · Sharpe ${num(sb)}`],
       labCode: labCode((answerIndex === 0 ? a : b).config, period, dataVersion),
     });
@@ -362,7 +362,7 @@ export function shareText(quiz: DailyQuiz, marks: boolean[], streak: number, ori
 
 export function verdictForScore(score: number): { title: string; body: string } {
   if (score === QUIZ_SIZE) return { title: "Five for five", body: "Well calibrated. The habit now is to demand the same evidence from your own strategies." };
-  if (score >= 3) return { title: "Better than most", body: "Most people score two or three. The misses are where overconfidence lives; read the lessons again tomorrow." };
+  if (score >= 3) return { title: "Better than most", body: "Most people score two or three. The misses are where overconfidence lives, so read the lessons again tomorrow." };
   if (score >= 1) return { title: "Honest score", body: "These questions are designed to be hard. The market does not reward the obvious reading of a chart." };
   return { title: "Zero is a lesson too", body: "Every intuition tested here was wrong today. That is exactly why EdgeLab tests instead of trusting." };
 }

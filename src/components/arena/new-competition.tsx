@@ -107,7 +107,7 @@ export function NewCompetition() {
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
               <InstrumentPicker
-                label="Instruments (single-asset bots trade the first; rotation bots use all)"
+                label="Instruments (single-asset bots trade the first one, rotation bots use them all)"
                 value={rules.assets}
                 onChange={(ids) => setRules({ ...rules, assets: ids as AssetId[] })}
                 market={marketOf(rules.assets[0])}
