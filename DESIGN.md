@@ -1,0 +1,69 @@
+# EdgeLab design system
+
+Documented from the built product (November 2026). Tokens live in `src/app/globals.css`; components in `src/components/ui`.
+
+## World
+
+An engineering drawing set for traders: a dark sheet, warm ink, hairline rules, measured annotations. Every result carries a provenance plate (dataset · version · market · period · costs · fills) like a drawing's title block, and charts use dimension lines for drawdowns and in-sample/out-of-sample walls. The world lends type, palette, density and that one signature move; navigation and controls are standard web components.
+
+Scene: a trader at a desk in the evening on a phone and a laptop. Dark by default; no light theme shipped.
+
+## Colour
+
+| Token | Value | Role |
+|---|---|---|
+| `--ground` | `#0c0d10` | page |
+| `--panel` | `#121317` | panels, tables, rail |
+| `--raised` | `#17181d` | inputs, active rows |
+| `--hover` | `#1c1d23` | hover |
+| `--hairline` | `#1f2026` | rules between rows and panels |
+| `--border` | `#2a2b32` / `--border-strong` `#3a3b44` | control borders |
+| `--ink` | `#ece9e2` | primary text (warm off-white) |
+| `--ink-2` | `#a9a69f` | secondary text |
+| `--ink-3` | `#74726c` | labels, meta |
+| `--ink-4` | `#4e4d49` | placeholders, tick marks |
+| `--annot` | `#7aa2d6` | selection, focus ring, dimension lines, callouts, primary tint |
+| `--up` | `#3ecf8e` | positive signed performance only |
+| `--down` | `#f0716a` | negative signed performance only |
+| `--warn` | `#e0a84a` | caution, demo-data label, simulated badge |
+| `--series-1..5` | `#3987e5 #d95926 #199e70 #c98500 #d55181` | categorical series (validated for the dark surface, fixed order) |
+| `--series-muted` | `#6b6a66` | benchmarks |
+
+Rules: emerald and red never mean anything but signed performance; colour never carries meaning alone (sign and label accompany it). Text never wears a series colour; identity comes from a swatch or line key beside it.
+
+## Type
+
+- UI and headings: **Schibsted Grotesk** (400–700), tight tracking (`-0.01em` headings).
+- Figures, tickers, timestamps, table cells with numbers: **Sometype Mono** via `.num` (tabular) or `.num-hero` (proportional, for the one hero figure per view).
+- Ramp (px): 11 (`text-2xs`, meta and plates), 12, 13 (tables), 15 (body), 18, 22 (page titles), 28, 38 and 56 (hero figures only).
+- Body measure ≤ 62ch; `text-wrap: pretty` on paragraphs, `balance` on headings.
+
+## Space and shape
+
+- 4px base; 8px rhythm; panel padding 16px (`px-4 py-3.5`); page gutter 16px mobile, 32px desktop; content max 1320px.
+- Radii: 3px small (badges, inputs), 5px medium (panels, buttons). Nothing larger.
+- Depth: flat panels with hairline borders; shadows only on dialogs and the floating mobile action (offset + soft blur, neutral).
+- Tables are ruled (hairlines), numeric columns right-aligned mono, secondary columns hidden under `sm:`/`md:` on phones.
+
+## Components
+
+- **Panel / PanelHeader / PanelBody**: the only container. Never nested.
+- **Stat**: label over mono value; `size="lg"` is the hero figure (one per view).
+- **ProvenancePlate**: the signature move; under every chart and result.
+- **Badge** (neutral, up, down, warn, annot, muted) and **SimulatedBadge**; **VerdictBadge** for edge verdicts.
+- **Button** (primary = ink on ground, secondary = raised with border, ghost, annot, danger); minimum 44px targets on phone (`size="lg"`).
+- **Field / Select / Input / NumberField (slider + exact input) / Segmented**: native controls in the house material.
+- **InstrumentPicker + MarketSelector**: market segmented control over a searchable listbox showing ticker · name · exchange · currency.
+- **EquityChart** (SVG; hover crosshair, dimension-line drawdown, walls, shaded test windows), **PriceChart** (lightweight-charts; indicators, markers, price lines, progressive reveal), **Sparkline**.
+
+## Motion
+
+One authored moment: `quiz-in` (360ms, `--ease-out-quart`) when a question or result settles. Everything else is colour transition at 150ms. Content is visible by default; `prefers-reduced-motion` disables all motion.
+
+## Copy
+
+Plain English first ("the biggest fall from a previous high"), then the term. Controls name their action. Every simulated figure says simulated; every demo figure says demo. No marketing adjectives, no kickers above headings, no em-dash cadence.
+
+## Navigation
+
+Phone: bottom bar with Home, Markets, Strategies, Arena, Portfolio (56px tall, safe-area aware); Replay, Journal and Today's Five are reached from Home and the Lab. Desktop: 220px left rail with all eight destinations. Primary action on Home is a fixed button above the tab bar on phones and a header button on desktop.

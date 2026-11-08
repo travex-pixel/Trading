@@ -20,9 +20,15 @@ src/lib/strategies/   Strategy *definitions* as data.
   runtime.ts          The prepare/signal contract the engine calls.
   library.ts          Ten strategies with plain-English metadata and signal logic.
 
-src/lib/market/       Market data.
-  demo-data.ts        Deterministic synthetic BTC/ETH hourly bars (labelled demo).
-  provider.ts         Server-only provider switch: demo (default) or Coinbase public.
+src/lib/market/       Markets and data.
+  instruments.ts      Instrument registry (ASX, US, crypto), market specs, currencies, default costs.
+  calendar.ts         Trading calendars: sessions, timezones with DST, ASX/NYSE holidays, market status.
+  demo-data.ts        Deterministic synthetic bars for every instrument, session-aware (labelled demo).
+  eodhd.ts            EODHD response parsing (pure, unit-tested).
+  provider.ts         Server-only provider chain: EODHD -> Coinbase (crypto) -> demo, with provenance.
+  client.ts           Browser fetch + cache + hook for candle series.
+
+src/lib/daily/        Today's Five: the daily calibration quiz generated from the engine.
 
 src/lib/store/        Persistence behind a Repository interface.
   local-store.ts      Browser localStorage, versioned, schema-validated on read.
@@ -43,7 +49,9 @@ src/components/       UI primitives, charts, feature components.
 
 **No look-ahead by construction.** Indicators are causal functions precomputed once; the engine asks the strategy for a decision at bar close and fills at the next bar's open. Replay reads the same signal records the backtest produced, so the replay cannot show anything the strategy did not know at the time.
 
-**Demo mode is the default, not a fallback.** The deterministic synthetic dataset ships with the app, is cached in memory on first use, and is labelled "DEMO DATA — NOT LIVE MARKET DATA" wherever it appears. A live provider (Coinbase Exchange public candles, no key) is enabled by one server-side environment variable and falls back to demo with a visible label if it fails.
+**ASX first, markets as data.** An instrument id is `MARKET:SYMBOL`. The registry carries each market's currency, calendar, execution assumptions and default costs; the engine never special-cases a market. Equity bars exist only inside sessions on trading days (daily bars are stamped with the session open), so next-bar fills cross overnight gaps and stops that gap fill at the open. Annualisation uses the market's bars per year (252 trading days for equities, 365 for crypto). A flat brokerage per order sits alongside basis-point fees because that is how Australian retail brokers charge.
+
+**Demo mode is the default, not a fallback.** The deterministic synthetic dataset ships with the app for every instrument, is cached in memory on first use, and is labelled "DEMO DATA — NOT LIVE MARKET DATA" wherever it appears. Every `DataSource` states provider, freshness (simulated, historical, delayed, real-time) and price adjustment. Real data comes from EODHD when a server-side token is present (ASX, US, crypto; adjusted daily bars, unadjusted intraday, delayed quotes); Coinbase public candles cover crypto without a key; both fall back to demo with a visible label if they fail. Twelve Data and Alpaca were evaluated and not selected (licensing and coverage; see README).
 
 **Local-first persistence.** Experiments, paper portfolios and competitions are stored in the browser behind a `Repository<T>` interface and validated on read. Supabase is an optional second implementation of the same interface; the demo never requires credentials.
 
@@ -54,7 +62,7 @@ src/components/       UI primitives, charts, feature components.
 ## Data flow
 
 ```
-GET /api/market/candles?assets=BTC,ETH&timeframe=4h
+GET /api/market/candles?assets=ASX:CBA,ASX:BHP&timeframe=1d
   -> provider.ts (server) -> columnar JSON, cache headers
   -> useCandles() (client, in-memory cache)
   -> runBacktest(config, series, period)   (client)
@@ -69,7 +77,7 @@ Strategy configuration (embedded JSON), Experiment (lineageId + version for hist
 
 ## Adding things later
 
-- New asset or asset class: add to `AssetId`, the provider map and the demo generator's asset specs. Nothing in the engine assumes crypto.
+- New instrument: one line in the registry (symbol, name, exchange, provider symbols, demo start level and volatility). New market: a calendar entry (timezone, session, holidays), a market spec, and a demo factor; Forex would follow this path.
 - New strategy kind: one schema variant, one library entry (metadata + prepare), one tunable-parameter entry. Tests follow the existing pattern.
 - Real multiplayer competitions: implement `Repository<Competition>` against Supabase with row-level security, swap `kind: "seeded_bot"` for `kind: "invited"` participants, and add auth. The UI already treats participants as a list of configurations.
 - Heavy validation off the main thread: `walkForward` and `sensitivity` are pure functions and can be moved to a Web Worker or a route handler unchanged.

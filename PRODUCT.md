@@ -26,6 +26,10 @@ The core problem it solves: most people cannot distinguish a genuinely effective
 
 Version one is research and simulation only. No real-money execution, no wallets, no private keys, no broker integrations.
 
+## Markets
+
+ASX-first (8 Nov 2026 update): Australian equities and ETFs are the primary market and the default experience; US equities and ETFs are secondary; cryptocurrency is an optional third market; forex is architecturally possible but not in this release. Each market carries its own calendar, timezone, currency, fees and execution assumptions, and a strategy that works on one is never assumed to work on another.
+
 ## Positioning
 
 Tagline: "Find an edge. Prove it. Beat the market."
@@ -38,7 +42,8 @@ Competitors in spirit: Botfight (accessible competition), Zenith (structured AI 
 
 - Five primary experiences: Command Centre (home), Strategy Lab (build, test, compare), Bot Arena (competition and leaderboard), Trade Replay (bar-by-bar simulation with explanations), Research Journal (experiment history and versions).
 - Paper trading runs on a deterministic simulation engine and every position is labelled simulated.
-- Market data: cryptocurrency first (BTC and ETH), designed so equities can be added later. A deterministic demo dataset ships with the product and is labelled "DEMO DATA — NOT LIVE MARKET DATA" wherever it appears. Live providers are optional and configured server-side.
+- Market data: ASX first (19 instruments), then US (11), then crypto (3). A deterministic demo dataset ships for every instrument and is labelled "DEMO DATA — NOT LIVE MARKET DATA" wherever it appears. Real history comes from EODHD when a server-side token is configured; every dataset states its source, freshness and adjustment.
+- Today's Five: a daily five-question calibration game built from real engine results on ASX instruments; same questions for everyone each day, scored, streaked and shareable.
 - The AI research assistant explains, suggests, reviews and challenges. It never invents data or performance figures, always cites the dataset and period, and labels AI-generated strategies as hypotheses.
 - Development follows research → plan → design → build → test → review → improve → verify.
 

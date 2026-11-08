@@ -15,7 +15,9 @@ EdgeLab is a research and simulation product. It must be safe to develop, deploy
 
 **Input validation.** Every request body and query string handled by a route handler is parsed with Zod before use (`src/lib/strategies/schema.ts`, `src/app/api/**`). Stored data is validated on read (`src/lib/store/local-store.ts`), so a tampered localStorage entry is dropped, not trusted. Shareable links are base64url with a strict character whitelist, a length cap and schema validation on decode (`src/lib/store/snapshot.ts`).
 
-**Server boundary.** `src/lib/market/provider.ts` imports `server-only`; a client import fails the build. Outbound fetches are restricted to one pinned host (`api.exchange.coinbase.com`) and the URL host is re-checked before each request.
+**Server boundary.** `src/lib/market/provider.ts` imports `server-only`; a client import fails the build. Outbound fetches are restricted to pinned hosts (`eodhd.com`, `api.exchange.coinbase.com`) and the URL host is re-checked before each request. The EODHD token is read from `EODHD_API_TOKEN` on the server only and sent as a query parameter to that host over HTTPS; it never reaches the browser, logs or the status API (which reports only whether a provider is configured).
+
+**Provider licensing.** Twelve Data's free tier forbids displaying data to users and its ASX feed is a paid add-on, so it is not used. EODHD terms distinguish personal and commercial plans; the operator must hold the plan matching their use. Alpaca does not carry ASX data.
 
 **Rate limiting.** Route handlers apply a best-effort in-memory token bucket keyed by client IP (`src/lib/server/rate-limit.ts`). On serverless this is per instance, which is adequate for abuse damping; a shared store can replace it without changing callers.
 
@@ -32,6 +34,7 @@ EdgeLab is a research and simulation product. It must be safe to develop, deploy
 | Date | Finding | Severity | Disposition |
 |------|---------|----------|-------------|
 | 2026-11-07 | `minimatch` ReDoS (GHSA-g3hv-75wg-m249) via `eslint-config-next` → `typescript-eslint` | moderate (8 paths) | Dev-only lint toolchain, never shipped to users or run on untrusted input. The upstream fix requires a breaking downgrade of `eslint-config-next`. Accepted; re-check on next `eslint-config-next` release. |
+| 2026-11-08 | `@anthropic-ai/sdk` added for the optional assistant layer | none reported | Official Anthropic package; server-only import; key via env. |
 
 ## Development tooling review
 

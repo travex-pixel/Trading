@@ -9,7 +9,7 @@ import { ErrorState, Skeleton } from "@/components/ui/empty";
 import { Field, Input, NumberField, Segmented, Select } from "@/components/ui/field";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/panel";
 import { InstrumentPicker } from "@/components/market/instrument-picker";
-import { MARKETS, marketOf, rotationPair } from "@/lib/market/instruments";
+import { DEFAULT_MARKET, MARKETS, marketOf, rotationPair } from "@/lib/market/instruments";
 import { PeriodPicker } from "@/components/lab/period-picker";
 import { defaultRules, makeParticipant, MAX_PARTICIPANTS, SEED_BOTS, type CompetitionRules } from "@/lib/arena/competition";
 import { useCandles } from "@/lib/market/client";
@@ -31,7 +31,8 @@ export function NewCompetition() {
   const router = useRouter();
   const { items: experiments } = useRepository(selectExperiments);
   const { put } = useRepository(selectCompetitions);
-  const { series, error, loading } = useCandles(["BTC", "ETH"], "4h");
+  // The data range for the period picker comes from the default market's instruments on daily bars.
+  const { series, error, loading } = useCandles([...rotationPair(DEFAULT_MARKET)], "1d");
 
   const dataRange = useMemo(() => {
     if (!series) return null;
