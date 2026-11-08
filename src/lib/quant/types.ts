@@ -4,20 +4,16 @@
  * serialised, cached, persisted and sent between server and client safely.
  */
 
-export type AssetId = "BTC" | "ETH";
-
-export const ASSETS: readonly AssetId[] = ["BTC", "ETH"] as const;
+/**
+ * An instrument id in the form "MARKET:SYMBOL", e.g. "ASX:CBA", "US:AAPL",
+ * "CRYPTO:BTC". The registry in src/lib/market/instruments.ts defines the
+ * universe; the engine treats ids as opaque strings.
+ */
+export type AssetId = string;
 
 export type Timeframe = "1h" | "4h" | "1d";
 
 export const TIMEFRAMES: readonly Timeframe[] = ["1h", "4h", "1d"] as const;
-
-/** Bars per calendar year for annualisation, by timeframe. */
-export const BARS_PER_YEAR: Record<Timeframe, number> = {
-  "1h": 24 * 365,
-  "4h": 6 * 365,
-  "1d": 365,
-};
 
 export const TIMEFRAME_MS: Record<Timeframe, number> = {
   "1h": 60 * 60 * 1000,
@@ -36,22 +32,36 @@ export interface Candle {
 }
 
 /** A candle series for one asset at one timeframe. */
+export type MarketCode = "ASX" | "US" | "CRYPTO";
+export type CurrencyCode = "AUD" | "USD";
+
 export interface CandleSeries {
   asset: AssetId;
+  market: MarketCode;
+  currency: CurrencyCode;
   timeframe: Timeframe;
   candles: Candle[];
   /** Identifies where the data came from so results are reproducible. */
   source: DataSource;
 }
 
+export type DataFreshness = "simulated" | "historical" | "delayed" | "realtime";
+export type PriceAdjustment = "none" | "splits" | "splits_dividends" | "unknown";
+
 export interface DataSource {
   /** "demo" is the deterministic synthetic dataset. */
-  provider: "demo" | "coinbase";
+  provider: "demo" | "eodhd" | "coinbase";
   /** Dataset version. Bump when the generator or ingestion changes. */
   version: string;
   /** Human-readable label shown wherever the data appears. */
   label: string;
   isSynthetic: boolean;
+  /** What kind of data this is, so the UI never presents one as another. */
+  freshness: DataFreshness;
+  /** How prices are adjusted for corporate actions. */
+  adjustment: PriceAdjustment;
+  /** When the data was fetched or generated (ms), for freshness labels. */
+  asOf: number | null;
 }
 
 export type TradeExitReason = "signal" | "stop_loss" | "take_profit" | "end_of_data" | "rotation";
@@ -116,8 +126,11 @@ export interface SignalRecord {
 
 export interface BacktestAssumptions {
   initialCapital: number;
+  currency: CurrencyCode;
   feeBps: number;
   slippageBps: number;
+  /** Flat brokerage per order in quote currency. */
+  feeFixed: number;
   /** Orders generated at bar close execute at the next bar's open. */
   executionModel: "next_bar_open";
   /** If a stop and a take-profit are both touched within one bar, the stop fills. */
@@ -131,6 +144,8 @@ export interface BacktestResult {
   strategyName: string;
   timeframe: Timeframe;
   assets: AssetId[];
+  market: MarketCode;
+  currency: CurrencyCode;
   source: DataSource;
   period: { start: number; end: number; bars: number };
   assumptions: BacktestAssumptions;

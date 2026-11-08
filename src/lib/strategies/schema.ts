@@ -8,8 +8,16 @@
  */
 
 import { z } from "zod";
+import { isInstrumentId, marketOf } from "@/lib/market/instruments";
 
-export const assetIdSchema = z.enum(["BTC", "ETH"]);
+/** Legacy ids from the crypto-only release map onto the new universe. */
+const LEGACY_IDS: Record<string, string> = { BTC: "CRYPTO:BTC", ETH: "CRYPTO:ETH" };
+
+export const assetIdSchema = z
+  .string()
+  .max(32)
+  .transform((v) => LEGACY_IDS[v] ?? v)
+  .refine((v) => isInstrumentId(v), { message: "Unknown instrument." });
 export const timeframeSchema = z.enum(["1h", "4h", "1d"]);
 
 const pct = (min: number, max: number) => z.number().min(min).max(max);
@@ -46,10 +54,12 @@ export const riskSchema = z.object({
 export type RiskConfig = z.infer<typeof riskSchema>;
 
 export const costsSchema = z.object({
-  /** Taker fee per side, in basis points. 10 bps = 0.10%. */
+  /** Fee per side, in basis points. 10 bps = 0.10%. */
   feeBps: z.number().min(0).max(500),
   /** Slippage per side, in basis points. */
   slippageBps: z.number().min(0).max(500),
+  /** Flat brokerage per order in the instrument's currency (the norm for Australian retail brokers). */
+  feeFixed: z.number().min(0).max(1000).default(0),
 });
 
 export type CostsConfig = z.infer<typeof costsSchema>;
@@ -130,7 +140,7 @@ export const strategyConfigSchema = z
     /** Schema version for forward compatibility of stored configs. */
     v: z.literal(1),
     name: z.string().trim().min(1).max(80),
-    assets: z.array(assetIdSchema).min(1).max(2),
+    assets: z.array(assetIdSchema).min(1).max(4),
     timeframe: timeframeSchema,
     params: strategyParamsSchema,
     risk: riskSchema,
@@ -139,6 +149,13 @@ export const strategyConfigSchema = z
   })
   .superRefine((cfg, ctx) => {
     const p = cfg.params;
+    const markets = new Set(cfg.assets.map((a) => marketOf(a)));
+    if (markets.size > 1) {
+      ctx.addIssue({ code: "custom", path: ["assets"], message: "All instruments in one strategy must trade on the same market." });
+    }
+    if (new Set(cfg.assets).size !== cfg.assets.length) {
+      ctx.addIssue({ code: "custom", path: ["assets"], message: "Instruments must be distinct." });
+    }
     if (p.kind === "ma_crossover" && p.fast >= p.slow) {
       ctx.addIssue({ code: "custom", path: ["params", "fast"], message: "Fast period must be shorter than slow period." });
     }

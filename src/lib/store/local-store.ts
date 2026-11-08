@@ -7,7 +7,7 @@
  */
 
 import { z } from "zod";
-import { strategyConfigSchema } from "@/lib/strategies/schema";
+import { assetIdSchema, strategyConfigSchema } from "@/lib/strategies/schema";
 import type { Competition, Experiment, Repository, Store } from "./types";
 import type { PaperPortfolio } from "@/lib/quant/paper";
 
@@ -31,7 +31,7 @@ const experimentSchema = z.object({
   dataset: z.object({ provider: z.string(), version: z.string(), label: z.string(), isSynthetic: z.boolean() }),
   period: z.object({ start: z.number(), end: z.number(), bars: z.number() }),
   timeframe: z.enum(["1h", "4h", "1d"]),
-  assets: z.array(z.enum(["BTC", "ETH"])),
+  assets: z.array(assetIdSchema),
   result: z.object({
     metrics: metricsSchema,
     benchmark: z.object({ name: z.string(), metrics: metricsSchema }).nullable(),
@@ -60,7 +60,8 @@ const competitionSchema = z.object({
   id: z.string().min(1).max(64),
   name: z.string().max(120),
   rules: z.object({
-    assets: z.array(z.enum(["BTC", "ETH"])).min(1),
+    assets: z.array(assetIdSchema).min(1),
+    feeFixed: z.number().min(0).max(1000).optional(),
     timeframe: z.enum(["1h", "4h", "1d"]),
     start: z.number(),
     end: z.number(),

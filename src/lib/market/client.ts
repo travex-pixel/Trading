@@ -9,6 +9,8 @@ import type { AssetId, Candle, CandleSeries, Timeframe } from "@/lib/quant/types
 
 interface ColumnarSeries {
   asset: AssetId;
+  market: CandleSeries["market"];
+  currency: CandleSeries["currency"];
   timeframe: Timeframe;
   source: CandleSeries["source"];
   t: number[];
@@ -23,18 +25,18 @@ function fromColumnar(s: ColumnarSeries): CandleSeries {
   const n = s.t.length;
   const candles: Candle[] = new Array(n);
   for (let i = 0; i < n; i++) candles[i] = { time: s.t[i], open: s.o[i], high: s.h[i], low: s.l[i], close: s.c[i], volume: s.v[i] };
-  return { asset: s.asset, timeframe: s.timeframe, candles, source: s.source };
+  return { asset: s.asset, market: s.market, currency: s.currency, timeframe: s.timeframe, candles, source: s.source };
 }
 
 const cache = new Map<string, Promise<CandleSeries[]>>();
 
 export function fetchCandles(assets: AssetId[], timeframe: Timeframe): Promise<CandleSeries[]> {
   const sorted = [...assets].sort();
-  const key = `${sorted.join(",")}:${timeframe}`;
+  const key = `${sorted.join(",")}|${timeframe}`;
   const existing = cache.get(key);
   if (existing) return existing;
   const p = (async () => {
-    const res = await fetch(`/api/market/candles?assets=${sorted.join(",")}&timeframe=${timeframe}`);
+    const res = await fetch(`/api/market/candles?assets=${encodeURIComponent(sorted.join(","))}&timeframe=${timeframe}`);
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       throw new Error(body.error ?? `Market data request failed (${res.status}).`);
@@ -60,11 +62,12 @@ interface Loaded {
 }
 
 export function useCandles(assets: AssetId[], timeframe: Timeframe): CandlesState {
-  const key = `${[...assets].sort().join(",")}:${timeframe}`;
+  const key = `${[...assets].sort().join(",")}|${timeframe}`;
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   useEffect(() => {
     let cancelled = false;
-    fetchCandles(key.split(":")[0].split(",") as AssetId[], key.split(":")[1] as Timeframe)
+    const [ids, tf] = key.split("|");
+    fetchCandles(ids.split(",") as AssetId[], tf as Timeframe)
       .then((series) => {
         if (!cancelled) setLoaded({ key, series, error: null });
       })

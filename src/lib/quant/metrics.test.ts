@@ -65,7 +65,7 @@ describe("computeMetrics", () => {
   });
 
   it("flags insufficient trades and computes win rate and profit factor", () => {
-    const { metrics, warnings } = computeMetrics(eq([1000, 1010, 1005, 1020]), [trade(10, 0.1), trade(-5, -0.05), trade(15, 0.15)], "1d", 1000);
+    const { metrics, warnings } = computeMetrics(eq([1000, 1010, 1005, 1020]), [trade(10, 0.1), trade(-5, -0.05), trade(15, 0.15)], 365, 1000);
     expect(metrics.tradeCount).toBe(3);
     expect(metrics.winRatePct).toBeCloseTo(66.6667, 3);
     expect(metrics.profitFactor).toBeCloseTo(5, 8);
@@ -76,8 +76,8 @@ describe("computeMetrics", () => {
   });
 
   it("returns infinite profit factor with no losing trades and null with no trades", () => {
-    expect(computeMetrics(eq([1000, 1100]), [trade(100, 0.1)], "1d", 1000).metrics.profitFactor).toBe(Infinity);
-    expect(computeMetrics(eq([1000, 1000]), [], "1d", 1000).metrics.profitFactor).toBeNull();
+    expect(computeMetrics(eq([1000, 1100]), [trade(100, 0.1)], 365, 1000).metrics.profitFactor).toBe(Infinity);
+    expect(computeMetrics(eq([1000, 1000]), [], 365, 1000).metrics.profitFactor).toBeNull();
   });
 
   it("counts losing streaks", () => {

@@ -109,10 +109,14 @@ export function describeChanges(changes: ParamChange[]): string {
 }
 
 export function experimentSource(e: Experiment): DataSource {
+  const provider: DataSource["provider"] = e.dataset.provider === "coinbase" ? "coinbase" : e.dataset.provider === "eodhd" ? "eodhd" : "demo";
   return {
-    provider: e.dataset.provider === "coinbase" ? "coinbase" : "demo",
+    provider,
     version: e.dataset.version,
     label: e.dataset.label,
     isSynthetic: e.dataset.isSynthetic,
+    freshness: e.dataset.isSynthetic ? "simulated" : "historical",
+    adjustment: provider === "eodhd" ? "splits_dividends" : provider === "demo" ? "none" : "unknown",
+    asOf: null,
   };
 }

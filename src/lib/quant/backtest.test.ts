@@ -3,24 +3,24 @@ import type { StrategyConfig } from "@/lib/strategies/schema";
 import { runBacktest, BacktestError } from "./backtest";
 import type { Candle, CandleSeries, DataSource } from "./types";
 
-const source: DataSource = { provider: "demo", version: "test", label: "TEST", isSynthetic: true };
+const source: DataSource = { provider: "demo", version: "test", label: "TEST", isSynthetic: true, freshness: "simulated", adjustment: "none", asOf: null };
 
 function series(closes: number[], opens?: number[]): CandleSeries {
   const candles: Candle[] = closes.map((c, i) => {
     const o = opens ? opens[i] : i === 0 ? c : closes[i - 1];
     return { time: Date.UTC(2024, 0, 1) + i * 86_400_000, open: o, high: Math.max(o, c) * 1.01, low: Math.min(o, c) * 0.99, close: c, volume: 1 };
   });
-  return { asset: "BTC", timeframe: "1d", candles, source };
+  return { asset: "CRYPTO:BTC", market: "CRYPTO", currency: "USD", timeframe: "1d", candles, source };
 }
 
 function cfg(partial: Partial<StrategyConfig> & { params: StrategyConfig["params"] }): StrategyConfig {
   return {
     v: 1,
     name: "test",
-    assets: ["BTC"],
+    assets: ["CRYPTO:BTC"],
     timeframe: "1d",
     risk: { stopLossPct: null, takeProfitPct: null, sizing: { mode: "fixed_fraction", fraction: 1 }, maxPositions: 1 },
-    costs: { feeBps: 0, slippageBps: 0 },
+    costs: { feeBps: 0, slippageBps: 0, feeFixed: 0 },
     initialCapital: 1000,
     ...partial,
   };
@@ -42,7 +42,7 @@ describe("runBacktest: buy and hold", () => {
 
   it("charges fees and slippage on entry and exit", () => {
     const s = series([100, 100, 100, 100]);
-    const r = runBacktest(cfg({ params: { kind: "buy_and_hold" }, costs: { feeBps: 100, slippageBps: 100 } }), [s]);
+    const r = runBacktest(cfg({ params: { kind: "buy_and_hold" }, costs: { feeBps: 100, slippageBps: 100, feeFixed: 0 } }), [s]);
     // Buy fill 101, notional = cash / 1.01 ; fee 1% of notional. Exit at 100 close, fee 1%.
     const t = r.trades[0];
     expect(t.entryPrice).toBeCloseTo(101, 8);
@@ -73,14 +73,16 @@ describe("runBacktest: execution rules", () => {
       { time: 2, open: 98, high: 99, low: 80, close: 85, volume: 1 }, // stop 90 touched within the bar
       { time: 3, open: 85, high: 86, low: 84, close: 85, volume: 1 },
     ];
-    const s: CandleSeries = { asset: "BTC", timeframe: "1d", candles, source };
+    const s: CandleSeries = { asset: "CRYPTO:BTC", market: "CRYPTO", currency: "USD", timeframe: "1d", candles, source };
     const r = runBacktest(cfg({ params: { kind: "buy_and_hold" }, risk: { stopLossPct: 0.1, takeProfitPct: null, sizing: { mode: "fixed_fraction", fraction: 1 }, maxPositions: 1 } }), [s]);
     expect(r.trades[0].exitReason).toBe("stop_loss");
     expect(r.trades[0].exitPrice).toBeCloseTo(90, 8);
     expect(r.metrics.totalReturnPct).toBeCloseTo(-10, 8);
 
     const gap: CandleSeries = {
-      asset: "BTC",
+      asset: "CRYPTO:BTC",
+      market: "CRYPTO",
+      currency: "USD",
       timeframe: "1d",
       candles: [candles[0], candles[1], { time: 2, open: 70, high: 72, low: 65, close: 70, volume: 1 }, candles[3]],
       source,
@@ -96,16 +98,31 @@ describe("runBacktest: execution rules", () => {
       { time: 2, open: 100, high: 130, low: 80, close: 100, volume: 1 },
       { time: 3, open: 100, high: 101, low: 99, close: 100, volume: 1 },
     ];
-    const s: CandleSeries = { asset: "BTC", timeframe: "1d", candles, source };
+    const s: CandleSeries = { asset: "CRYPTO:BTC", market: "CRYPTO", currency: "USD", timeframe: "1d", candles, source };
     const r = runBacktest(cfg({ params: { kind: "buy_and_hold" }, risk: { stopLossPct: 0.1, takeProfitPct: 0.1, sizing: { mode: "fixed_fraction", fraction: 1 }, maxPositions: 1 } }), [s]);
     expect(r.trades[0].exitReason).toBe("stop_loss");
   });
 
   it("scales a buy down to available cash and never goes negative", () => {
     const s = series([100, 100, 100]);
-    const r = runBacktest(cfg({ params: { kind: "buy_and_hold" }, risk: { stopLossPct: null, takeProfitPct: null, sizing: { mode: "fixed_cash", amount: 1_000_000 }, maxPositions: 1 }, costs: { feeBps: 50, slippageBps: 0 } }), [s]);
+    const r = runBacktest(cfg({ params: { kind: "buy_and_hold" }, risk: { stopLossPct: null, takeProfitPct: null, sizing: { mode: "fixed_cash", amount: 1_000_000 }, maxPositions: 1 }, costs: { feeBps: 50, slippageBps: 0, feeFixed: 0 } }), [s]);
     for (const p of r.equity) expect(p.cash).toBeGreaterThanOrEqual(-1e-9);
     expect(r.trades[0].quantity * 100 + r.trades[0].quantity * 100 * 0.005).toBeCloseTo(1000, 6);
+  });
+});
+
+describe("runBacktest: flat brokerage", () => {
+  it("charges a fixed fee per order on entry and exit and funds it from cash", () => {
+    const s = series([100, 100, 100, 100]);
+    const r = runBacktest(cfg({ params: { kind: "buy_and_hold" }, costs: { feeBps: 0, slippageBps: 0, feeFixed: 10 } }), [s]);
+    const t = r.trades[0];
+    // Entry: (1000 - 10) notional, 10 fee, cash 0. Exit at 100: gross 990, fee 10 -> realised P&L -20.
+    expect(t.quantity * 100).toBeCloseTo(990, 6);
+    expect(t.fees).toBeCloseTo(20, 8);
+    expect(t.pnl).toBeCloseTo(-20, 6);
+    // Equity is marked at the last close before the end-of-data liquidation fee, by design.
+    expect(r.metrics.finalEquity).toBeCloseTo(990, 6);
+    for (const p of r.equity) expect(p.cash).toBeGreaterThanOrEqual(-1e-9);
   });
 });
 
@@ -158,14 +175,14 @@ describe("runBacktest: strategies and edge cases", () => {
   it("momentum rotation holds at most one asset and sells before buying", () => {
     const n = 60;
     const btc: CandleSeries = series(Array.from({ length: n }, (_, i) => 100 + i));
-    const eth: CandleSeries = { ...series(Array.from({ length: n }, (_, i) => (i < 30 ? 100 + i * 3 : 190 - (i - 30) * 2))), asset: "ETH" };
+    const eth: CandleSeries = { ...series(Array.from({ length: n }, (_, i) => (i < 30 ? 100 + i * 3 : 190 - (i - 30) * 2))), asset: "CRYPTO:ETH" };
     const r = runBacktest(
-      cfg({ assets: ["BTC", "ETH"], params: { kind: "momentum_rotation", lookback: 5, rebalanceBars: 5, minReturn: 0 } }),
+      cfg({ assets: ["CRYPTO:BTC", "CRYPTO:ETH"], params: { kind: "momentum_rotation", lookback: 5, rebalanceBars: 5, minReturn: 0 } }),
       [btc, eth],
     );
     expect(r.trades.length).toBeGreaterThan(1);
-    expect(r.trades.some((t) => t.asset === "ETH")).toBe(true);
-    expect(r.trades.some((t) => t.asset === "BTC")).toBe(true);
+    expect(r.trades.some((t) => t.asset === "CRYPTO:ETH")).toBe(true);
+    expect(r.trades.some((t) => t.asset === "CRYPTO:BTC")).toBe(true);
     for (const p of r.equity) expect(p.exposure).toBeLessThanOrEqual(1.0000001);
   });
 });

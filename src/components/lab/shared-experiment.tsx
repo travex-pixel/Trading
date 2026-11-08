@@ -40,6 +40,7 @@ export function SharedExperiment({ snapshot }: { snapshot: Snapshot }) {
           <PanelBody className="px-0 pt-0">
             <MetricsTable
               timeframe={r.config.timeframe}
+              currency={r.result.currency}
               columns={[
                 { name: "Strategy", metrics: r.result.metrics, color: "var(--series-1)" },
                 { name: "Buy & hold", metrics: r.benchmarks.buyAndHold.metrics },

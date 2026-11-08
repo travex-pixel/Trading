@@ -3,7 +3,7 @@ import { demoSeries } from "@/lib/market/demo-data";
 import { buildDailyQuiz, QUIZ_SIZE, scoreQuiz, shareText, utcDateKey } from "./quiz";
 import { computeStreak } from "./store";
 
-const series = demoSeries("BTC", "4h");
+const series = demoSeries("ASX:CBA", "1d");
 
 describe("daily quiz", () => {
   it("is deterministic for a date and different across dates", () => {

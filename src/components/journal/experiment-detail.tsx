@@ -13,6 +13,7 @@ import { PageHeader, Panel, PanelBody, PanelHeader } from "@/components/ui/panel
 import { ProvenancePlate } from "@/components/ui/provenance";
 import { VerdictBadge } from "@/components/ui/verdict";
 import { Legend, MetricsTable, SERIES_COLORS, describeParams } from "@/components/lab/results";
+import { currencyOf, marketOf } from "@/lib/market/instruments";
 import { fmtDate, fmtDateTime, fmtInt, fmtNum, fmtPct, signClass, timeframeLabel } from "@/lib/format";
 import { describeChanges, describeSizing, diffConfigs, experimentSource, PARAM_LABELS } from "@/lib/journal/lineage";
 import type { PerformanceMetrics } from "@/lib/quant/types";
@@ -158,7 +159,7 @@ function Detail({ experiment: e, versions, onSaved, onDelete }: { experiment: Ex
           <div className="px-2 pt-3 pb-1">
             <EquityChart series={[{ id: "e", name: e.name, points: e.result.equity, color: SERIES_COLORS[0] }]} height={240} />
           </div>
-          <ProvenancePlate source={source} period={e.period} bars={e.period.bars} timeframe={e.timeframe} feeBps={e.config.costs.feeBps} slippageBps={e.config.costs.slippageBps} />
+          <ProvenancePlate source={source} period={e.period} bars={e.period.bars} timeframe={e.timeframe} feeBps={e.config.costs.feeBps} slippageBps={e.config.costs.slippageBps} feeFixed={e.config.costs.feeFixed} currency={currencyOf(e.assets[0])} market={marketOf(e.assets[0])} />
         </Panel>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -167,6 +168,7 @@ function Detail({ experiment: e, versions, onSaved, onDelete }: { experiment: Ex
             <PanelBody className="px-0 pt-0">
               <MetricsTable
                 timeframe={e.timeframe}
+                currency={currencyOf(e.assets[0])}
                 columns={[{ name: "Strategy", metrics: m, color: SERIES_COLORS[0] }, ...(bench ? [{ name: bench.name, metrics: bench.metrics as unknown as PerformanceMetrics }] : [])]}
                 compactRows={["totalReturnPct", "cagrPct", "maxDrawdownPct", "sharpe", "sortino", "tradeCount", "winRatePct", "profitFactor", "exposurePct", "totalFees"]}
               />

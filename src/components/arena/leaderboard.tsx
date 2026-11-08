@@ -19,6 +19,7 @@ import { fmtInt, fmtNum, fmtPct, signClass } from "@/lib/format";
 import { computeStandings, describeRules, type Standing } from "@/lib/arena/competition";
 import { describeTradeoffs } from "@/lib/lab/compare";
 import { useCandles } from "@/lib/market/client";
+import { DEFAULT_MARKET, rotationPair } from "@/lib/market/instruments";
 import { runBacktest } from "@/lib/quant/backtest";
 import { buyAndHoldConfig } from "@/lib/quant/benchmarks";
 import type { CandleSeries } from "@/lib/quant/types";
@@ -27,8 +28,8 @@ import type { Competition } from "@/lib/store/types";
 import { cn } from "@/lib/utils";
 
 export function useStandings(competition: Competition | null) {
-  const assets = competition?.rules.assets ?? ["BTC"];
-  const timeframe = competition?.rules.timeframe ?? "4h";
+  const assets = competition?.rules.assets ?? [...rotationPair(DEFAULT_MARKET)];
+  const timeframe = competition?.rules.timeframe ?? "1d";
   const { series, error, loading } = useCandles(assets, timeframe);
   const standings = useMemo(() => (competition && series ? computeStandings(competition, series) : null), [competition, series]);
   return { standings, series, error, loading };
@@ -245,6 +246,7 @@ function CompetitorDetail({ s, competition, series }: { s: Standing; competition
         {s.result && bench ? (
           <MetricsTable
             timeframe={competition.rules.timeframe}
+            currency={s.result.currency}
             columns={[
               { name: s.participant.name, metrics: s.result.metrics, color: s.color },
               { name: "Buy & hold", metrics: bench },

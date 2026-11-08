@@ -16,6 +16,7 @@ import { runBacktest } from "@/lib/quant/backtest";
 import { buyAndHoldConfig } from "@/lib/quant/benchmarks";
 import type { Timeframe } from "@/lib/quant/types";
 import { STRATEGY_LIBRARY, STRATEGY_ORDER } from "@/lib/strategies/library";
+import { DEFAULT_MARKET, rotationPair } from "@/lib/market/instruments";
 import type { StrategyKind } from "@/lib/strategies/schema";
 import { Legend, MetricsTable, SERIES_COLORS } from "./results";
 import { PeriodPicker } from "./period-picker";
@@ -23,9 +24,15 @@ import type { Period } from "@/lib/quant/validation";
 
 export function ComparePanel() {
   const basket = useCompareBasket();
-  const [timeframe, setTimeframe] = useState<Timeframe>("4h");
+  const [timeframe, setTimeframe] = useState<Timeframe>("1d");
   const [period, setPeriod] = useState<Period | null>(null);
-  const { series, error, loading } = useCandles(["BTC", "ETH"], timeframe);
+  const instrumentIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const item of basket.items) for (const a of item.config.assets) ids.add(a);
+    if (ids.size === 0) for (const a of rotationPair(DEFAULT_MARKET)) ids.add(a);
+    return [...ids].slice(0, 4);
+  }, [basket.items]);
+  const { series, error, loading } = useCandles(instrumentIds, timeframe);
 
   const dataRange = useMemo(() => (series ? { start: series[0].candles[0].time, end: series[0].candles[series[0].candles.length - 1].time } : null), [series]);
   const effective = useMemo<Period | null>(() => {
@@ -134,7 +141,7 @@ export function ComparePanel() {
               <EquityChart series={equity} mode="percent" height={300} />
             </div>
             <Legend series={equity} />
-            {series ? <ProvenancePlate source={series[0].source} period={effective!} timeframe={timeframe} feeBps={basket.items[0]?.config.costs.feeBps} slippageBps={basket.items[0]?.config.costs.slippageBps} /> : null}
+            {series ? <ProvenancePlate source={series[0].source} period={effective!} timeframe={timeframe} feeBps={basket.items[0]?.config.costs.feeBps} slippageBps={basket.items[0]?.config.costs.slippageBps} feeFixed={basket.items[0]?.config.costs.feeFixed} currency={series[0].currency} market={series[0].market} /> : null}
           </Panel>
 
           {tradeoffs.length ? (
@@ -160,8 +167,8 @@ export function ComparePanel() {
                 timeframe={timeframe}
                 highlightFirst={false}
                 columns={[
-                  ...runs.out.filter((r) => r.result).map((r) => ({ name: r.name, metrics: r.result!.metrics, color: r.color })),
-                  ...(runs.bench ? [{ name: "Buy & hold", metrics: runs.bench.metrics }] : []),
+                  ...runs.out.filter((r) => r.result).map((r) => ({ name: r.name, metrics: r.result!.metrics, color: r.color, currency: r.result!.currency })),
+                  ...(runs.bench ? [{ name: "Buy & hold", metrics: runs.bench.metrics, currency: runs.bench.currency }] : []),
                 ]}
               />
               {runs.out.filter((r) => r.error).map((r) => (

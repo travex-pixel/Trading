@@ -15,6 +15,7 @@ import { experimentFromRun, sameLineage, suggestedFindings, suggestedWeaknesses 
 import { useCompareBasket } from "@/lib/lab/compare";
 import { parseStrategyConfig, type StrategyConfig, type StrategyKind } from "@/lib/strategies/schema";
 import { STRATEGY_LIBRARY } from "@/lib/strategies/library";
+import { MARKETS, isInstrumentId, marketOf } from "@/lib/market/instruments";
 import { assessEdge, type Period } from "@/lib/quant/validation";
 import { decodeSnapshot, encodeSnapshot } from "@/lib/store/snapshot";
 import { getStore, selectExperiments, selectPortfolios, useRepository } from "@/lib/store/use-store";
@@ -39,7 +40,11 @@ export function Workbench() {
       if (decoded.ok) return { config: decoded.snapshot.config, period: { start: decoded.snapshot.start, end: decoded.snapshot.end } };
     }
     const kind = params.get("kind") as StrategyKind | null;
-    const config = kind && kind in STRATEGY_LIBRARY ? STRATEGY_LIBRARY[kind].defaults : STRATEGY_LIBRARY.ma_crossover.defaults;
+    let config = kind && kind in STRATEGY_LIBRARY ? STRATEGY_LIBRARY[kind].defaults : STRATEGY_LIBRARY.ma_crossover.defaults;
+    const asset = params.get("asset");
+    if (asset && isInstrumentId(asset) && config.params.kind !== "momentum_rotation") {
+      config = { ...config, assets: [asset], costs: { ...MARKETS[marketOf(asset)].defaultCosts } };
+    }
     return { config, period: null };
   }, [params]);
 
@@ -208,6 +213,7 @@ export function Workbench() {
                     <PanelBody className="px-0 pt-0">
                       <MetricsTable
                         timeframe={run.config.timeframe}
+                        currency={run.result.currency}
                         columns={[
                           { name: "Strategy", metrics: run.result.metrics, color: "var(--series-1)" },
                           { name: "Buy & hold", metrics: run.benchmarks.buyAndHold.metrics },
@@ -451,7 +457,10 @@ function PaperDialog({ run, latest, onClose }: { run: LabRun; latest: number; on
       ) : null}
       <div className="mt-4">
         <Field label="Virtual capital" htmlFor="cap">
-          <input id="cap" type="number" min={100} max={10_000_000} step={100} value={capital} onChange={(e) => setCapital(Math.max(100, Number(e.target.value) || 100))} className="num h-9 w-full rounded-[var(--radius-md)] border border-border bg-raised px-2.5 text-sm text-ink" />
+          <div className="flex items-center gap-2">
+            <span className="num text-sm text-ink-3">{run.result.currency}</span>
+            <input id="cap" type="number" min={100} max={10_000_000} step={100} value={capital} onChange={(e) => setCapital(Math.max(100, Number(e.target.value) || 100))} className="num h-9 w-full rounded-[var(--radius-md)] border border-border bg-raised px-2.5 text-sm text-ink" />
+          </div>
         </Field>
       </div>
       <div className="mt-5 flex justify-end gap-2">

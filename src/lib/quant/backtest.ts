@@ -21,6 +21,8 @@
 import { prepareStrategy } from "@/lib/strategies/library";
 import type { StrategyConfig } from "@/lib/strategies/schema";
 import type { StrategyContext } from "@/lib/strategies/runtime";
+import { barsPerDay, barsPerYear } from "@/lib/market/calendar";
+import { marketOf } from "@/lib/market/instruments";
 import { atr } from "./indicators";
 import { computeMetrics } from "./metrics";
 import { hashSeed } from "./prng";
@@ -38,7 +40,6 @@ import type {
   Trade,
   TradeExitReason,
 } from "./types";
-import { BARS_PER_YEAR } from "./types";
 
 export interface BacktestOptions {
   /** Inclusive start timestamp (ms). Defaults to the first bar after warm-up. */
@@ -141,12 +142,16 @@ export function runBacktest(config: StrategyConfig, series: CandleSeries[], opti
     warnings.push({ code: "synthetic_data", severity: "info", message: "Results use the deterministic demo dataset, not live market data." });
   }
 
+  const market = marketOf(assets[0]);
   const feeRate = config.costs.feeBps / 10_000;
+  const feeFixed = config.costs.feeFixed ?? 0;
   const slipRate = config.costs.slippageBps / 10_000;
   const assumptions: BacktestAssumptions = {
     initialCapital: config.initialCapital,
+    currency: series[0].currency,
     feeBps: config.costs.feeBps,
     slippageBps: config.costs.slippageBps,
+    feeFixed,
     executionModel: "next_bar_open",
     intrabarPriority: "stop_first",
   };
@@ -156,7 +161,7 @@ export function runBacktest(config: StrategyConfig, series: CandleSeries[], opti
   if (config.risk.sizing.mode === "volatility_target") {
     for (const asset of assets) atrByAsset[asset] = atr(aligned[asset], config.risk.sizing.atrPeriod);
   }
-  const barsPerDay = BARS_PER_YEAR[config.timeframe] / 365;
+  const barsInDay = barsPerDay(market, config.timeframe);
 
   let cash = config.initialCapital;
   const positions: Partial<Record<AssetId, OpenPosition>> = {};
@@ -173,7 +178,7 @@ export function runBacktest(config: StrategyConfig, series: CandleSeries[], opti
     const pos = positions[asset];
     if (!pos) return;
     const gross = pos.quantity * fillPrice;
-    const fee = gross * feeRate;
+    const fee = gross * feeRate + feeFixed;
     cash += gross - fee;
     const entryNotional = pos.quantity * pos.entryPrice;
     const pnl = gross - fee - entryNotional - pos.entryFees;
@@ -211,7 +216,7 @@ export function runBacktest(config: StrategyConfig, series: CandleSeries[], opti
         const price = aligned[asset][index].close;
         if (a === null || a === undefined || a <= 0 || price <= 0) return 0;
         const barVol = a / price;
-        const dailyVol = barVol * Math.sqrt(barsPerDay);
+        const dailyVol = barVol * Math.sqrt(barsInDay);
         const fraction = Math.min(sizing.maxFraction, sizing.targetDailyVolPct / 100 / dailyVol);
         return currentEquity * fraction;
       }
@@ -242,12 +247,12 @@ export function runBacktest(config: StrategyConfig, series: CandleSeries[], opti
         if (openCount() >= config.risk.maxPositions) continue;
         const open = aligned[order.asset][i].open;
         const fill = open * (1 + slipRate);
-        // Scale to what cash can fund including the fee.
-        const affordable = cash / (1 + feeRate);
+        // Scale to what cash can fund including the proportional fee and the flat brokerage.
+        const affordable = (cash - feeFixed) / (1 + feeRate);
         const notional = Math.min(order.notional, affordable);
         if (notional < MIN_ORDER_NOTIONAL) continue;
         const quantity = notional / fill;
-        const fee = notional * feeRate;
+        const fee = notional * feeRate + feeFixed;
         cash -= notional + fee;
         const stop = config.risk.stopLossPct !== null ? fill * (1 - config.risk.stopLossPct) : null;
         const tp = config.risk.takeProfitPct !== null ? fill * (1 + config.risk.takeProfitPct) : null;
@@ -331,7 +336,7 @@ export function runBacktest(config: StrategyConfig, series: CandleSeries[], opti
     }
   }
 
-  const { metrics, warnings: metricWarnings } = computeMetrics(equity, trades, config.timeframe, config.initialCapital);
+  const { metrics, warnings: metricWarnings } = computeMetrics(equity, trades, barsPerYear(market, config.timeframe), config.initialCapital);
   warnings.push(...metricWarnings);
 
   // Expose only the window's slice of each indicator for charts.
@@ -345,6 +350,8 @@ export function runBacktest(config: StrategyConfig, series: CandleSeries[], opti
     strategyName: options.label ?? config.name,
     timeframe: config.timeframe,
     assets: [...assets],
+    market,
+    currency: series[0].currency,
     source,
     period: { start: reference[startIdx].time, end: reference[endIdx].time, bars: endIdx - startIdx + 1 },
     assumptions,

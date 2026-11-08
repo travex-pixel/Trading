@@ -8,6 +8,8 @@ import type { StrategyConfig } from "@/lib/strategies/schema";
 import { runBacktest, type BacktestOptions } from "./backtest";
 import type { BacktestResult, CandleSeries, EquityPoint } from "./types";
 import { computeMetrics } from "./metrics";
+import { barsPerDay, barsPerYear } from "@/lib/market/calendar";
+import { marketOf } from "@/lib/market/instruments";
 
 export interface BenchmarkSet {
   buyAndHold: BacktestResult;
@@ -26,8 +28,9 @@ export function buyAndHoldConfig(config: StrategyConfig): StrategyConfig {
 }
 
 export function momentumBenchmarkConfig(config: StrategyConfig): StrategyConfig {
-  // A 90-day lookback at each timeframe (capped by the schema at 1000 bars).
-  const lookback = config.timeframe === "1d" ? 90 : config.timeframe === "4h" ? 540 : 1000;
+  // Roughly a 90-trading-day lookback at each timeframe (capped by the schema at 1000 bars).
+  const perDay = Math.max(1, Math.round(barsPerDay(marketOf(config.assets[0]), config.timeframe)));
+  const lookback = Math.min(1000, 90 * perDay);
   return {
     ...config,
     name: "Simple momentum",
@@ -46,7 +49,7 @@ export function cashBenchmark(reference: BacktestResult): BacktestResult {
     exposure: 0,
     drawdown: 0,
   }));
-  const { metrics } = computeMetrics(equity, [], reference.timeframe, reference.assumptions.initialCapital);
+  const { metrics } = computeMetrics(equity, [], barsPerYear(reference.market, reference.timeframe), reference.assumptions.initialCapital);
   return {
     ...reference,
     id: `${reference.id}-cash`,

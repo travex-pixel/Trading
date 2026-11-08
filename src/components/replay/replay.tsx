@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronFirst, ChevronLast, Pause, Play, SkipBack, SkipForward, StepBack, StepForward } from "lucide-react";
 import { EquityChart } from "@/components/charts/equity-chart";
 import type { PriceLineSpec, PriceMarker } from "@/components/charts/price-chart";
+import { InstrumentPicker } from "@/components/market/instrument-picker";
+import { MARKETS, defaultInstrument, marketOf, rotationPair } from "@/lib/market/instruments";
 import { PeriodPicker, presetPeriod } from "@/components/lab/period-picker";
 import { Badge, SimulatedBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +16,7 @@ import { Field, Segmented, Select } from "@/components/ui/field";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/panel";
 import { ProvenancePlate } from "@/components/ui/provenance";
 import { Stat } from "@/components/ui/stat";
-import { fmtDateTime, fmtMoney, fmtNum, fmtPct, fmtPrice, signClass } from "@/lib/format";
+import { fmtDateTime, fmtMoney, fmtNum, fmtPct, fmtPrice, signClass, type Currency } from "@/lib/format";
 import { useCandles } from "@/lib/market/client";
 import { runBacktest, windowCandles } from "@/lib/quant/backtest";
 import type { AssetId, BacktestResult, Candle, Timeframe } from "@/lib/quant/types";
@@ -76,10 +78,11 @@ export function Replay() {
     }
   }, [series, effectivePeriod, config]);
 
+  const market = marketOf(config.assets[0]);
   const setKind = (kind: StrategyKind) => {
     const defaults = STRATEGY_LIBRARY[kind].defaults;
-    const assets: AssetId[] = kind === "momentum_rotation" ? ["BTC", "ETH"] : [config.assets[0] ?? "BTC"];
-    setConfig({ ...defaults, assets, timeframe: config.timeframe });
+    const assets: AssetId[] = kind === "momentum_rotation" ? [...rotationPair(market)] : [config.assets[0] ?? defaultInstrument(market).id];
+    setConfig({ ...defaults, assets, timeframe: config.timeframe, costs: { ...MARKETS[market].defaultCosts } });
   };
 
   return (
@@ -96,21 +99,15 @@ export function Replay() {
               ))}
             </Select>
           </Field>
-          <Field label="Asset">
-            {config.params.kind === "momentum_rotation" ? (
-              <div className="flex h-9 items-center text-sm text-ink-2">BTC and ETH</div>
-            ) : (
-              <Segmented<AssetId>
-                label="Asset"
-                value={config.assets[0]}
-                onChange={(a) => setConfig({ ...config, assets: [a] })}
-                options={[
-                  { value: "BTC", label: "BTC" },
-                  { value: "ETH", label: "ETH" },
-                ]}
-              />
-            )}
-          </Field>
+          <InstrumentPicker
+            label={config.params.kind === "momentum_rotation" ? "Instruments" : "Instrument"}
+            value={config.assets}
+            onChange={(ids) => setConfig({ ...config, assets: ids })}
+            market={market}
+            onMarketChange={(m) => setConfig({ ...config, assets: config.params.kind === "momentum_rotation" ? [...rotationPair(m)] : [defaultInstrument(m).id], costs: { ...MARKETS[m].defaultCosts } })}
+            max={config.params.kind === "momentum_rotation" ? 4 : 1}
+            min={config.params.kind === "momentum_rotation" ? 2 : 1}
+          />
           <Field label="Timeframe">
             <Segmented<Timeframe>
               label="Timeframe"
@@ -144,6 +141,7 @@ export function Replay() {
 /* ------------------------------------------------------------------------- */
 
 function ReplayPlayer({ result, candles, display, events, config }: { result: BacktestResult; candles: Candle[]; display: IndicatorDisplay[]; events: ReplayEvent[]; config: StrategyConfig }) {
+  const currency = result.currency;
   const last = candles.length - 1;
   const firstInteresting = useMemo(() => {
     const firstEvent = events[0] ? candles.findIndex((c) => c.time === events[0].time) : -1;
@@ -267,7 +265,7 @@ function ReplayPlayer({ result, candles, display, events, config }: { result: Ba
             }
             aside={<SimulatedBadge />}
           />
-          {frame.open ? <OpenTradeDimension frame={frame} /> : null}
+          {frame.open ? <OpenTradeDimension frame={frame} currency={currency} /> : null}
           <div className="px-1 pt-2">
             <PriceChart
               candles={candles}
@@ -354,15 +352,15 @@ function ReplayPlayer({ result, candles, display, events, config }: { result: Ba
           <PanelHeader title="Simulated portfolio at this bar" aside={<SimulatedBadge />} />
           <PanelBody>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
-              <Stat label="Equity" value={fmtMoney(frame.equity)} size="md" />
-              <Stat label="Total P&L" value={fmtMoney(totalPnl, { cents: Math.abs(totalPnl) < 100 })} tone={totalPnl > 0 ? "up" : totalPnl < 0 ? "down" : "neutral"} size="md" sub={`${fmtMoney(frame.realisedPnl)} realised`} />
+              <Stat label="Equity" value={fmtMoney(frame.equity, { currency })} size="md" />
+              <Stat label="Total P&L" value={fmtMoney(totalPnl, { cents: Math.abs(totalPnl) < 100, currency })} tone={totalPnl > 0 ? "up" : totalPnl < 0 ? "down" : "neutral"} size="md" sub={`${fmtMoney(frame.realisedPnl, { currency })} realised`} />
               <Stat label="Drawdown now" value={fmtPct(-frame.drawdown * 100)} tone={frame.drawdown > 0.0005 ? "down" : "muted"} size="md" sub="from the running peak" />
               <Stat
                 label="Position"
                 value={frame.open ? `${fmtNum(frame.open.quantity, frame.open.quantity < 1 ? 4 : 2)} ${frame.open.asset}` : "Cash"}
                 size="md"
                 tone={frame.open ? "neutral" : "muted"}
-                sub={frame.open ? `${fmtPct(frame.exposure * 100, { digits: 0 })} of equity · entered ${fmtPrice(frame.open.entryPrice)}` : "No open position"}
+                sub={frame.open ? `${fmtPct(frame.exposure * 100, { digits: 0 })} of equity · entered ${fmtPrice(frame.open.entryPrice, currency)}` : "No open position"}
               />
             </div>
             <div className="mt-4 border-t border-hairline pt-3">
@@ -379,12 +377,12 @@ function ReplayPlayer({ result, candles, display, events, config }: { result: Ba
           <PanelBody className="space-y-3">
             {frame.fillBarEntry ? (
               <Callout tone="annot" title="Filled at this bar's open">
-                The signal fired at the previous bar&apos;s close. The buy filled here at {fmtPrice(frame.fillBarEntry.entryPrice)}, including slippage, so the strategy never traded on a price it had not yet seen.
+                The signal fired at the previous bar&apos;s close. The buy filled here at {fmtPrice(frame.fillBarEntry.entryPrice, currency)}, including slippage, so the strategy never traded on a price it had not yet seen.
               </Callout>
             ) : null}
             {frame.fillBarExit ? (
               <Callout tone={frame.fillBarExit.pnl >= 0 ? "up" : "down"} title={`Closed: ${frame.fillBarExit.exitReasonText}`}>
-                Exit at {fmtPrice(frame.fillBarExit.exitPrice)} for {fmtMoney(frame.fillBarExit.pnl, { cents: true })} ({fmtPct(frame.fillBarExit.returnPct * 100, { sign: true })}) after fees.
+                Exit at {fmtPrice(frame.fillBarExit.exitPrice, currency)} for {fmtMoney(frame.fillBarExit.pnl, { cents: true, currency })} ({fmtPct(frame.fillBarExit.returnPct * 100, { sign: true })}) after fees.
               </Callout>
             ) : null}
             {frame.lastNote ? (
@@ -401,12 +399,12 @@ function ReplayPlayer({ result, candles, display, events, config }: { result: Ba
               <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-hairline pt-3 text-xs">
                 <div>
                   <dt className="text-ink-3">Close</dt>
-                  <dd className="num text-ink">{fmtPrice(frame.candle.close)}</dd>
+                  <dd className="num text-ink">{fmtPrice(frame.candle.close, currency)}</dd>
                 </div>
                 {frame.indicatorValues.map((v) => (
                   <div key={v.label}>
                     <dt className="text-ink-3">{v.label}</dt>
-                    <dd className="num text-ink">{v.value === null ? "warming up" : v.pane === "price" ? fmtPrice(v.value) : fmtNum(v.value, Math.abs(v.value) < 10 ? 3 : 1)}</dd>
+                    <dd className="num text-ink">{v.value === null ? "warming up" : v.pane === "price" ? fmtPrice(v.value, currency) : fmtNum(v.value, Math.abs(v.value) < 10 ? 3 : 1)}</dd>
                   </div>
                 ))}
               </dl>
@@ -416,10 +414,10 @@ function ReplayPlayer({ result, candles, display, events, config }: { result: Ba
                 <div className="text-ink-3">Open trade</div>
                 <div className="mt-1 flex items-baseline justify-between gap-3">
                   <span className="num text-ink-2">
-                    {fmtPrice(frame.open.entryPrice)} → {fmtPrice(frame.candle.close)}
+                    {fmtPrice(frame.open.entryPrice, currency)} → {fmtPrice(frame.candle.close, currency)}
                   </span>
                   <span className={cn("num font-medium", signClass(frame.openPnl))}>
-                    {fmtMoney(frame.openPnl, { cents: Math.abs(frame.openPnl) < 100 })} · {fmtPct(frame.openPnlPct, { sign: true })}
+                    {fmtMoney(frame.openPnl, { cents: Math.abs(frame.openPnl) < 100, currency })} · {fmtPct(frame.openPnlPct, { sign: true })}
                   </span>
                 </div>
               </div>
@@ -441,7 +439,7 @@ function ReplayPlayer({ result, candles, display, events, config }: { result: Ba
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-baseline gap-x-2">
                       <span className="text-xs font-medium text-ink">
-                        {e.kind === "entry" ? "Buy" : "Sell"} {e.trade.asset} at {fmtPrice(e.kind === "entry" ? e.trade.entryPrice : e.trade.exitPrice)}
+                        {e.kind === "entry" ? "Buy" : "Sell"} {e.trade.asset} at {fmtPrice(e.kind === "entry" ? e.trade.entryPrice : e.trade.exitPrice, currency)}
                       </span>
                       <span className="num text-2xs text-ink-3">{fmtDateTime(e.time)}</span>
                       {e.kind === "exit" ? (
@@ -465,7 +463,7 @@ function ReplayPlayer({ result, candles, display, events, config }: { result: Ba
 /* ------------------------------------------------------------------------- */
 
 /** A live dimension line for the open trade: entry → mark, bracketed, with the signed P&L. */
-function OpenTradeDimension({ frame }: { frame: NonNullable<ReturnType<typeof frameAt>> }) {
+function OpenTradeDimension({ frame, currency }: { frame: NonNullable<ReturnType<typeof frameAt>>; currency: Currency }) {
   const t = frame.open!;
   const up = frame.openPnl >= 0;
   const color = up ? "var(--up)" : "var(--down)";
@@ -479,10 +477,10 @@ function OpenTradeDimension({ frame }: { frame: NonNullable<ReturnType<typeof fr
       </svg>
       <span className="text-ink-3">Open trade</span>
       <span className="num text-ink-2">
-        {fmtPrice(t.entryPrice)} → {fmtPrice(frame.candle.close)}
+        {fmtPrice(t.entryPrice, currency)} → {fmtPrice(frame.candle.close, currency)}
       </span>
       <span className={cn("num ml-auto font-medium", signClass(frame.openPnl))}>
-        {fmtPct(frame.openPnlPct, { sign: true })} · {fmtMoney(frame.openPnl, { cents: Math.abs(frame.openPnl) < 100 })}
+        {fmtPct(frame.openPnlPct, { sign: true })} · {fmtMoney(frame.openPnl, { cents: Math.abs(frame.openPnl) < 100, currency })}
       </span>
     </div>
   );

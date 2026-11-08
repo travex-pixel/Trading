@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/empty";
 import { Panel } from "@/components/ui/panel";
 import { fmtDate, fmtMoney } from "@/lib/format";
+import { currencyOf } from "@/lib/market/instruments";
 import type { PaperPortfolio } from "@/lib/quant/paper";
 import { selectPortfolios, useRepository } from "@/lib/store/use-store";
 import { STRATEGY_LIBRARY } from "@/lib/strategies/library";
@@ -91,7 +92,7 @@ function PortfolioRow({ portfolio: p }: { portfolio: PaperPortfolio }) {
           <span className="block text-2xs text-ink-3">Simulated clock</span>
           <span className={cn("num", p.status === "running" ? "text-ink-2" : "text-ink-3")}>{fmtDate(p.status === "stopped" && p.stoppedAt !== null ? p.stoppedAt : p.clock)}</span>
         </div>
-        <div className="col-span-2 text-xs text-ink-3 sm:hidden">Virtual capital {fmtMoney(p.config.initialCapital)}</div>
+        <div className="col-span-2 text-xs text-ink-3 sm:hidden">Virtual capital {fmtMoney(p.config.initialCapital, { currency: currencyOf(p.config.assets[0]) })}</div>
       </Link>
     </li>
   );

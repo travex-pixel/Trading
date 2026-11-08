@@ -12,8 +12,8 @@ import { ArrowRight, Check, Flame, RotateCcw, Share2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ErrorState, Skeleton } from "@/components/ui/empty";
 import { Panel, PanelBody } from "@/components/ui/panel";
-import { ProvenancePlate } from "@/components/ui/provenance";
-import { buildDailyQuiz, QUIZ_SIZE, scoreQuiz, shareText, utcDateKey, verdictForScore, type DailyQuiz } from "@/lib/daily/quiz";
+import { Cell, ProvenancePlate } from "@/components/ui/provenance";
+import { buildDailyQuiz, pickQuizSeries, QUIZ_INSTRUMENTS, QUIZ_SIZE, QUIZ_TIMEFRAME, scoreQuiz, shareText, utcDateKey, verdictForScore, type DailyQuiz } from "@/lib/daily/quiz";
 import { computeStreak, useDailyRecord } from "@/lib/daily/store";
 import { fmtDate } from "@/lib/format";
 import { useCandles } from "@/lib/market/client";
@@ -31,11 +31,11 @@ function useToday(): string | null {
 
 export function useTodaysQuiz(): { quiz: DailyQuiz | null; error: string | null; loading: boolean; date: string } {
   const date = useToday();
-  const { series, error, loading } = useCandles(["BTC"], "4h");
+  const { series, error, loading } = useCandles(QUIZ_INSTRUMENTS, QUIZ_TIMEFRAME);
   const built = useMemo(() => {
     if (!series || !date) return { quiz: null, error: null };
     try {
-      return { quiz: buildDailyQuiz(date, series[0]), error: null };
+      return { quiz: buildDailyQuiz(date, pickQuizSeries(date, series)), error: null };
     } catch (err) {
       return { quiz: null, error: err instanceof Error ? err.message : "Could not build today's quiz." };
     }
@@ -163,7 +163,7 @@ function Intro({ quiz, streak, onPlay }: { quiz: DailyQuiz; streak: number; onPl
           {streak >= 2 ? <StreakBadge streak={streak} /> : null}
         </div>
         <p className="mt-3 max-w-[46ch] text-base text-ink-2 leading-6">
-          Five real results from the lab. Can you tell an edge from luck? Same five questions for everyone today; new ones tomorrow.
+          Five real results from the lab, today on <span className="text-ink">{quiz.symbol}</span>. Can you tell an edge from luck? Same five questions for everyone today; new ones tomorrow.
         </p>
         <ul className="mt-5 grid gap-2 text-sm text-ink-2 sm:grid-cols-2">
           {quiz.questions.map((q, i) => (
@@ -180,7 +180,7 @@ function Intro({ quiz, streak, onPlay }: { quiz: DailyQuiz; streak: number; onPl
           <span className="text-xs text-ink-3">No sign-up. Your score stays on this device.</span>
         </div>
       </PanelBody>
-      <ProvenancePlate source={{ provider: "demo", version: quiz.dataVersion, label: "DEMO DATA — NOT LIVE MARKET DATA", isSynthetic: quiz.isSynthetic }} period={quiz.period} timeframe={quiz.timeframe} />
+      <ProvenancePlate source={quiz.source} period={quiz.period} timeframe={quiz.timeframe} extra={<Cell label="Instrument" value={`${quiz.symbol} · ASX · ${quiz.currency}`} />} />
     </Panel>
   );
 }
@@ -390,7 +390,7 @@ function Result({ quiz, marks, streak, onReview, onReplay }: { quiz: DailyQuiz; 
           </button>
         </div>
       </PanelBody>
-      <ProvenancePlate source={{ provider: "demo", version: quiz.dataVersion, label: "DEMO DATA — NOT LIVE MARKET DATA", isSynthetic: quiz.isSynthetic }} period={quiz.period} timeframe={quiz.timeframe} />
+      <ProvenancePlate source={quiz.source} period={quiz.period} timeframe={quiz.timeframe} extra={<Cell label="Instrument" value={`${quiz.symbol} · ASX · ${quiz.currency}`} />} />
     </Panel>
   );
 }

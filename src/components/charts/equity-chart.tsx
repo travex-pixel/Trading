@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { fmtDate, fmtMoney, fmtPct } from "@/lib/format";
+import { fmtDate, fmtMoney, fmtPct, type Currency } from "@/lib/format";
 import { downsample } from "@/lib/utils";
 
 export interface EquitySeries {
@@ -43,6 +43,7 @@ export function EquityChart({
   shade,
   className,
   compact = false,
+  currency = "AUD",
 }: {
   series: EquitySeries[];
   height?: number;
@@ -54,6 +55,8 @@ export function EquityChart({
   shade?: Array<{ start: number; end: number; label?: string }>;
   className?: string;
   compact?: boolean;
+  /** Currency of the equity values in "value" mode. */
+  currency?: Currency;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
@@ -157,7 +160,7 @@ export function EquityChart({
     });
   }, [hover, prepared]);
 
-  const fmtV = (v: number) => (mode === "percent" ? fmtPct(v, { sign: true, digits: Math.abs(v) >= 100 ? 0 : 1 }) : fmtMoney(v, { compact: true }));
+  const fmtV = (v: number) => (mode === "percent" ? fmtPct(v, { sign: true, digits: Math.abs(v) >= 100 ? 0 : 1 }) : fmtMoney(v, { compact: true, currency }));
 
   if (!domain) {
     return (
@@ -328,7 +331,9 @@ function DrawdownDimension({
   const yBot = y(toV(dd.troughEquity));
   // Place the dimension line to the right of the span unless it would run into the axis gutter; then to the left of the peak.
   const labelWidth = dd.label.length * 6.2 + 14;
-  const rightSide = Math.max(x0, x1) + 10 + labelWidth < plotRight;
+  const fitsRight = Math.max(x0, x1) + 10 + labelWidth < plotRight;
+  const fitsLeft = Math.min(x0, x1) - 10 - labelWidth > 0;
+  const rightSide = fitsRight || !fitsLeft;
   const lx = rightSide ? Math.max(x0, x1) + 10 : Math.min(x0, x1) - 10;
   const ext = rightSide ? lx + 4 : lx - 4;
   return (

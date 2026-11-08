@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ErrorState, Skeleton } from "@/components/ui/empty";
 import { Field, Input, NumberField, Segmented, Select } from "@/components/ui/field";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/panel";
+import { InstrumentPicker } from "@/components/market/instrument-picker";
+import { MARKETS, marketOf, rotationPair } from "@/lib/market/instruments";
 import { PeriodPicker } from "@/components/lab/period-picker";
 import { defaultRules, makeParticipant, MAX_PARTICIPANTS, SEED_BOTS, type CompetitionRules } from "@/lib/arena/competition";
 import { useCandles } from "@/lib/market/client";
@@ -103,18 +105,19 @@ export function NewCompetition() {
               <Input id="cname" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Assets" hint="Single-asset strategies trade the first asset; rotation strategies need both.">
-                <Segmented<"BTC" | "ETH" | "BOTH">
-                  label="Assets"
-                  value={rules.assets.length === 2 ? "BOTH" : rules.assets[0]}
-                  onChange={(v) => setRules({ ...rules, assets: v === "BOTH" ? (["BTC", "ETH"] as AssetId[]) : [v] })}
-                  options={[
-                    { value: "BTC", label: "BTC" },
-                    { value: "ETH", label: "ETH" },
-                    { value: "BOTH", label: "BTC + ETH" },
-                  ]}
-                />
-              </Field>
+              <InstrumentPicker
+                label="Instruments (single-asset bots trade the first; rotation bots use all)"
+                value={rules.assets}
+                onChange={(ids) => setRules({ ...rules, assets: ids as AssetId[] })}
+                market={marketOf(rules.assets[0])}
+                onMarketChange={(m) => {
+                  const costs = MARKETS[m].defaultCosts;
+                  setRules({ ...rules, assets: [...rotationPair(m)], feeBps: costs.feeBps, slippageBps: costs.slippageBps, feeFixed: costs.feeFixed });
+                }}
+                max={4}
+                min={1}
+                className="sm:col-span-2"
+              />
               <Field label="Timeframe">
                 <Segmented<Timeframe>
                   label="Timeframe"
@@ -129,8 +132,9 @@ export function NewCompetition() {
               </Field>
             </div>
             <PeriodPicker period={{ start: rules.start, end: rules.end }} onChange={(p) => setRules({ ...rules, start: p.start, end: p.end })} dataStart={dataRange.start} dataEnd={dataRange.end} />
-            <div className="grid gap-4 sm:grid-cols-3">
-              <NumberField id="capital" label="Starting capital" unit="$" value={rules.initialCapital} min={100} max={10_000_000} step={100} onChange={(initialCapital) => setRules({ ...rules, initialCapital })} />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <NumberField id="feefixed" label="Brokerage per order" unit={MARKETS[marketOf(rules.assets[0])].currency} value={rules.feeFixed ?? 0} min={0} max={200} step={0.5} onChange={(feeFixed) => setRules({ ...rules, feeFixed })} />
+              <NumberField id="capital" label="Starting capital" unit={MARKETS[marketOf(rules.assets[0])].currency} value={rules.initialCapital} min={100} max={10_000_000} step={100} onChange={(initialCapital) => setRules({ ...rules, initialCapital })} />
               <NumberField id="fee" label="Fee per side" unit="bp" value={rules.feeBps} min={0} max={100} onChange={(feeBps) => setRules({ ...rules, feeBps })} />
               <NumberField id="slip" label="Slippage per side" unit="bp" value={rules.slippageBps} min={0} max={100} onChange={(slippageBps) => setRules({ ...rules, slippageBps })} />
             </div>

@@ -5,7 +5,7 @@ import { runBacktest } from "./backtest";
 import { runBenchmarks } from "./benchmarks";
 import { assessEdge, classifyRegimes, neighbourhood, parameterGrid, regimePerformance, sensitivity, splitPeriod, walkForward } from "./validation";
 
-const btc = demoSeries("BTC", "1d");
+const btc = demoSeries("ASX:CBA", "1d");
 const period = { start: btc.candles[200].time, end: btc.candles[btc.candles.length - 1].time };
 
 describe("splitPeriod", () => {

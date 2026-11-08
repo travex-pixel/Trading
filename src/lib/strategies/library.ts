@@ -10,6 +10,7 @@
 import { atr, closes, donchian, ema, macd, rsi, sma, trailingReturn, type Series } from "@/lib/quant/indicators";
 import { mulberry32 } from "@/lib/quant/prng";
 import type { AssetId, Candle } from "@/lib/quant/types";
+import { DEFAULT_MARKET, MARKETS, defaultInstrument, rotationPair } from "@/lib/market/instruments";
 import type { StrategyConfig, StrategyKind, StrategyParams } from "./schema";
 import { indicatorKey, type IndicatorDisplay, type PreparedStrategy, type StrategyContext, type StrategySignal } from "./runtime";
 
@@ -34,14 +35,15 @@ const defaultRisk = {
   maxPositions: 1,
 };
 
-const defaultCosts = { feeBps: 10, slippageBps: 5 };
+const defaultCosts = { ...MARKETS[DEFAULT_MARKET].defaultCosts };
 
+/** Library defaults are expressed for the default market (ASX) on daily bars: 20 bars is about a trading month. */
 function base(name: string, params: StrategyParams, overrides: Partial<StrategyConfig> = {}): StrategyConfig {
   return {
     v: 1,
     name,
-    assets: ["BTC"],
-    timeframe: "4h",
+    assets: [defaultInstrument(DEFAULT_MARKET).id],
+    timeframe: "1d",
     params,
     risk: defaultRisk,
     costs: defaultCosts,
@@ -149,7 +151,7 @@ export const STRATEGY_LIBRARY: Record<StrategyKind, StrategyMeta> = {
       "Highly sensitive to the ATR multiple; small changes flip results.",
     ],
     benchmark: false,
-    defaults: base("Vol breakout 1.5 ATR", { kind: "volatility_breakout", atrPeriod: 14, atrMultiple: 1.5, holdBars: 12 }),
+    defaults: base("Vol breakout 1.5 ATR", { kind: "volatility_breakout", atrPeriod: 14, atrMultiple: 1.5, holdBars: 5 }),
   },
   buy_and_hold: {
     kind: "buy_and_hold",
@@ -181,9 +183,9 @@ export const STRATEGY_LIBRARY: Record<StrategyKind, StrategyMeta> = {
     ],
     benchmark: false,
     defaults: base(
-      "Rotation 30d",
-      { kind: "momentum_rotation", lookback: 180, rebalanceBars: 42, minReturn: 0 },
-      { assets: ["BTC", "ETH"] },
+      "Rotation 60d",
+      { kind: "momentum_rotation", lookback: 60, rebalanceBars: 21, minReturn: 0 },
+      { assets: [...rotationPair(DEFAULT_MARKET)] },
     ),
   },
   tsmom: {
@@ -196,7 +198,7 @@ export const STRATEGY_LIBRARY: Record<StrategyKind, StrategyMeta> = {
     exitRule: "Trailing return over the lookback turns negative.",
     weaknesses: ["Slow to react to crashes.", "Flips frequently when price hovers near its level from N bars ago."],
     benchmark: true,
-    defaults: base("Momentum 90d", { kind: "tsmom", lookback: 540 }),
+    defaults: base("Momentum 90d", { kind: "tsmom", lookback: 90 }),
   },
   random_baseline: {
     kind: "random_baseline",

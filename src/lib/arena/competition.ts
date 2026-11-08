@@ -13,6 +13,7 @@ import type { BacktestResult, CandleSeries } from "@/lib/quant/types";
 import { riskAdjustedScore } from "@/lib/lab/run";
 import { STRATEGY_LIBRARY } from "@/lib/strategies/library";
 import { parseStrategyConfig, type StrategyConfig } from "@/lib/strategies/schema";
+import { DEFAULT_MARKET, MARKETS, marketOf, rotationPair, type MarketId } from "@/lib/market/instruments";
 import { newId } from "@/lib/store/local-store";
 import type { Competition, CompetitionParticipant } from "@/lib/store/types";
 
@@ -23,13 +24,13 @@ export const MAX_PARTICIPANTS = 8;
 /** Force a configuration onto the competition's shared rules. */
 export function normaliseToRules(config: StrategyConfig, rules: CompetitionRules): StrategyConfig {
   const isRotation = config.params.kind === "momentum_rotation";
-  const assets: StrategyConfig["assets"] = isRotation ? (rules.assets.length >= 2 ? [...rules.assets] : ["BTC", "ETH"]) : [rules.assets[0]];
+  const assets: StrategyConfig["assets"] = isRotation ? (rules.assets.length >= 2 ? [...rules.assets] : [...rotationPair(marketOf(rules.assets[0]))]) : [rules.assets[0]];
   return {
     ...config,
     assets,
     timeframe: rules.timeframe,
     initialCapital: rules.initialCapital,
-    costs: { feeBps: rules.feeBps, slippageBps: rules.slippageBps },
+    costs: { feeBps: rules.feeBps, slippageBps: rules.slippageBps, feeFixed: rules.feeFixed ?? 0 },
   };
 }
 
@@ -72,22 +73,22 @@ export const SEED_BOTS: SeedBotSpec[] = [
     key: "momentum",
     name: "Momentum bot",
     description: "Holds when price is above its level roughly two months ago, otherwise cash.",
-    // The library default lookback (540 bars) exceeds the schema's 400-bar cap; clamp so the bot always validates.
-    config: () => ({ ...STRATEGY_LIBRARY.tsmom.defaults, name: "Momentum bot", params: { kind: "tsmom", lookback: 400 } }),
+    config: () => ({ ...STRATEGY_LIBRARY.tsmom.defaults, name: "Momentum bot" }),
   },
   { key: "mean_reversion", name: "Mean reversion bot", description: "Buys oversold RSI readings with a stop loss, sells on recovery.", config: () => ({ ...STRATEGY_LIBRARY.rsi_mean_reversion.defaults, name: "Mean reversion bot" }) },
   { key: "random", name: "Random baseline", description: "Flips a coin each bar. If a strategy cannot beat this, it has no edge.", config: () => ({ ...STRATEGY_LIBRARY.random_baseline.defaults, name: "Random baseline" }) },
   { key: "candidate", name: "AI research candidate", description: "A crossover with parameters nudged from a seed. A hypothesis, not a proven system.", config: (seed) => researchCandidateConfig(seed) },
 ];
 
-export function defaultRules(dataStart: number, dataEnd: number): CompetitionRules {
+export function defaultRules(dataStart: number, dataEnd: number, market: MarketId = DEFAULT_MARKET): CompetitionRules {
   const start = Math.max(dataStart, dataEnd - 365 * 86_400_000);
-  return { assets: ["BTC", "ETH"], timeframe: "4h", start, end: dataEnd, initialCapital: 10_000, feeBps: 10, slippageBps: 5 };
+  const costs = MARKETS[market].defaultCosts;
+  return { assets: [...rotationPair(market)], timeframe: "1d", start, end: dataEnd, initialCapital: 10_000, feeBps: costs.feeBps, slippageBps: costs.slippageBps, feeFixed: costs.feeFixed };
 }
 
 /** A ready-made competition with every seeded bot plus a library entry for "you". */
-export function demoCompetition(dataStart: number, dataEnd: number): Competition {
-  const rules = defaultRules(dataStart, dataEnd);
+export function demoCompetition(dataStart: number, dataEnd: number, market: MarketId = DEFAULT_MARKET): Competition {
+  const rules = defaultRules(dataStart, dataEnd, market);
   const seed = `demo-${dataEnd}`;
   const participants: CompetitionParticipant[] = [];
   const you = makeParticipant(STRATEGY_LIBRARY.breakout.defaults.name, "you", STRATEGY_LIBRARY.breakout.defaults, rules);
@@ -138,5 +139,9 @@ export function computeStandings(competition: Competition, series: CandleSeries[
 }
 
 export function describeRules(rules: CompetitionRules): string {
-  return `${rules.assets.join(" + ")} · ${rules.timeframe} bars · $${rules.initialCapital.toLocaleString("en-US")} each · ${rules.feeBps}bp fee, ${rules.slippageBps}bp slippage`;
+  const market = marketOf(rules.assets[0]);
+  const ccy = MARKETS[market].currency;
+  const symbols = rules.assets.map((a) => a.split(":")[1] ?? a).join(" + ");
+  const brokerage = rules.feeFixed ? `${rules.feeFixed} ${ccy}/order, ` : "";
+  return `${symbols} (${MARKETS[market].shortName}) · ${rules.timeframe} bars · ${ccy} ${rules.initialCapital.toLocaleString("en-AU")} each · ${brokerage}${rules.feeBps}bp fee, ${rules.slippageBps}bp slippage`;
 }

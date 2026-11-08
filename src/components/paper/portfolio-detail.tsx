@@ -12,6 +12,7 @@ import { Stat } from "@/components/ui/stat";
 import { SERIES_COLORS, EXIT_LABEL } from "@/components/lab/results";
 import { fmtDate, fmtDateTime, fmtDuration, fmtMoney, fmtNum, fmtPct, fmtPrice, signClass, timeframeLabel } from "@/lib/format";
 import { useCandles } from "@/lib/market/client";
+import { currencyOf } from "@/lib/market/instruments";
 import { advanceClock, computePaperState, stopPortfolio, type PaperPortfolio } from "@/lib/quant/paper";
 import { STRATEGY_LIBRARY } from "@/lib/strategies/library";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ export function PortfolioDetail({
   onDelete: () => Promise<void>;
 }) {
   const { series, error, loading } = useCandles(portfolio.config.assets, portfolio.config.timeframe);
+  const currency = currencyOf(portfolio.config.assets[0]);
   const latest = useMemo(() => (series ? series[0].candles[series[0].candles.length - 1]?.time ?? null : null), [series]);
   const state = useMemo(() => (series ? computePaperState(portfolio, series) : null), [portfolio, series]);
   const source = series ? series[0].source : null;
@@ -66,7 +68,7 @@ export function PortfolioDetail({
             <Badge tone={running ? "annot" : "muted"}>{running ? "Running" : "Stopped"}</Badge>
           </div>
           <p className="mt-1 text-xs text-ink-3">
-            {meta.name} · {portfolio.config.assets.join("+")} · {timeframeLabel(portfolio.config.timeframe)} · started {fmtDate(portfolio.startedAt)} · virtual capital {fmtMoney(portfolio.config.initialCapital)}
+            {meta.name} · {portfolio.config.assets.map((a) => a.split(":")[1] ?? a).join("+")} · {timeframeLabel(portfolio.config.timeframe)} · started {fmtDate(portfolio.startedAt)} · virtual capital {fmtMoney(portfolio.config.initialCapital)}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -111,10 +113,10 @@ export function PortfolioDetail({
           </Panel>
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
-            <Stat label="Simulated equity" value={fmtMoney(state.equity, { cents: true })} size="md" sub={`Cash ${fmtMoney(state.cash)}`} />
-            <Stat label="Total P&L" value={`${state.totalPnl >= 0 ? "+" : ""}${fmtMoney(state.totalPnl, { cents: true })}`} tone={state.totalPnl > 0 ? "up" : state.totalPnl < 0 ? "down" : "neutral"} size="md" sub={fmtPct(state.returnPct, { sign: true })} />
-            <Stat label="Realised" value={`${state.realisedPnl >= 0 ? "+" : ""}${fmtMoney(state.realisedPnl, { cents: true })}`} tone={state.realisedPnl > 0 ? "up" : state.realisedPnl < 0 ? "down" : "neutral"} size="md" sub={`${state.closedTrades.length} closed trade${state.closedTrades.length === 1 ? "" : "s"}`} />
-            <Stat label="Unrealised" value={`${state.unrealisedPnl >= 0 ? "+" : ""}${fmtMoney(state.unrealisedPnl, { cents: true })}`} tone={state.unrealisedPnl > 0 ? "up" : state.unrealisedPnl < 0 ? "down" : "neutral"} size="md" sub={`${state.positions.length} open position${state.positions.length === 1 ? "" : "s"}`} />
+            <Stat label="Simulated equity" value={fmtMoney(state.equity, { cents: true, currency })} size="md" sub={`Cash ${fmtMoney(state.cash)}`} />
+            <Stat label="Total P&L" value={`${state.totalPnl >= 0 ? "+" : ""}${fmtMoney(state.totalPnl, { cents: true, currency })}`} tone={state.totalPnl > 0 ? "up" : state.totalPnl < 0 ? "down" : "neutral"} size="md" sub={fmtPct(state.returnPct, { sign: true })} />
+            <Stat label="Realised" value={`${state.realisedPnl >= 0 ? "+" : ""}${fmtMoney(state.realisedPnl, { cents: true, currency })}`} tone={state.realisedPnl > 0 ? "up" : state.realisedPnl < 0 ? "down" : "neutral"} size="md" sub={`${state.closedTrades.length} closed trade${state.closedTrades.length === 1 ? "" : "s"}`} />
+            <Stat label="Unrealised" value={`${state.unrealisedPnl >= 0 ? "+" : ""}${fmtMoney(state.unrealisedPnl, { cents: true, currency })}`} tone={state.unrealisedPnl > 0 ? "up" : state.unrealisedPnl < 0 ? "down" : "neutral"} size="md" sub={`${state.positions.length} open position${state.positions.length === 1 ? "" : "s"}`} />
           </div>
 
           {state.result ? (
@@ -170,14 +172,14 @@ export function PortfolioDetail({
                       <tr key={p.asset}>
                         <td className="text-ink">{p.asset}</td>
                         <td className="num text-ink-2">{fmtNum(p.quantity, 4)}</td>
-                        <td className="num text-ink-2">{fmtPrice(p.entryPrice)}</td>
-                        <td className="num text-ink-2">{fmtPrice(p.markPrice)}</td>
+                        <td className="num text-ink-2">{fmtPrice(p.entryPrice, currency)}</td>
+                        <td className="num text-ink-2">{fmtPrice(p.markPrice, currency)}</td>
                         <td className={cn("num", signClass(p.unrealisedPnl))}>
                           {p.unrealisedPnl >= 0 ? "+" : ""}
-                          {fmtMoney(p.unrealisedPnl, { cents: true })} <span className="text-2xs">({fmtPct(p.unrealisedPct, { sign: true })})</span>
+                          {fmtMoney(p.unrealisedPnl, { cents: true, currency })} <span className="text-2xs">({fmtPct(p.unrealisedPct, { sign: true })})</span>
                         </td>
                         <td className="num text-ink-3">
-                          {p.stopPrice !== null ? fmtPrice(p.stopPrice) : "–"} / {p.takeProfitPrice !== null ? fmtPrice(p.takeProfitPrice) : "–"}
+                          {p.stopPrice !== null ? fmtPrice(p.stopPrice, currency) : "–"} / {p.takeProfitPrice !== null ? fmtPrice(p.takeProfitPrice, currency) : "–"}
                         </td>
                         <td className="text-xs text-ink-3">
                           <span className="num text-ink-2">{fmtDate(p.entryTime)}</span>
@@ -219,8 +221,8 @@ export function PortfolioDetail({
                           <td className={o.side === "buy" ? "text-up" : "text-down"}>{o.side === "buy" ? "Buy" : "Sell"}</td>
                           <td className="text-ink-2">{o.asset}</td>
                           <td className="num text-ink-2">{fmtNum(o.quantity, 4)}</td>
-                          <td className="num text-ink-2">{fmtPrice(o.price)}</td>
-                          <td className="num text-ink-3">{fmtMoney(o.fee, { cents: true })}</td>
+                          <td className="num text-ink-2">{fmtPrice(o.price, currency)}</td>
+                          <td className="num text-ink-3">{fmtMoney(o.fee, { cents: true, currency })}</td>
                           <td className="max-w-[28ch] truncate text-xs text-ink-3" title={o.reason}>
                             {o.reason}
                           </td>
@@ -258,7 +260,7 @@ export function PortfolioDetail({
                           <td className="num text-ink-2">{fmtDuration(t.holdingBars, portfolio.config.timeframe)}</td>
                           <td className={cn("num", signClass(t.pnl))}>
                             {t.pnl >= 0 ? "+" : ""}
-                            {fmtMoney(t.pnl, { cents: true })}
+                            {fmtMoney(t.pnl, { cents: true, currency })}
                           </td>
                           <td className={cn("num", signClass(t.returnPct))}>{fmtPct(t.returnPct * 100, { sign: true })}</td>
                           <td className="text-xs text-ink-3">{EXIT_LABEL[t.exitReason]}</td>

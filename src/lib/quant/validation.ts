@@ -16,7 +16,8 @@ import { runBacktest } from "./backtest";
 import { closes, rollingStd, simpleReturns, sma } from "./indicators";
 import { computeMetrics, MIN_TRADES_FOR_CONFIDENCE } from "./metrics";
 import type { BacktestResult, CandleSeries, EquityPoint, PerformanceMetrics, Timeframe } from "./types";
-import { BARS_PER_YEAR } from "./types";
+import { barsPerYear } from "@/lib/market/calendar";
+import { marketOf } from "@/lib/market/instruments";
 
 /* ------------------------------------------------------------------------- */
 /* Period splitting                                                           */
@@ -260,7 +261,7 @@ export function walkForward(config: StrategyConfig, series: CandleSeries[], peri
     p.drawdown = peak > 0 ? (peak - p.equity) / peak : 0;
   }
   const allTestTrades = folds.flatMap((f) => f.testResult.trades);
-  const stitchedMetrics = computeMetrics(stitched, allTestTrades, config.timeframe, config.initialCapital).metrics;
+  const stitchedMetrics = computeMetrics(stitched, allTestTrades, barsPerYear(marketOf(config.assets[0]), config.timeframe), config.initialCapital).metrics;
   const inSample = runBacktest(config, series, { start: period.start, end: period.end });
 
   return { folds, stitchedEquity: stitched, stitchedMetrics, inSampleMetrics: inSample.metrics, objective, evaluations };
@@ -593,7 +594,7 @@ function fmtNum(v: number | null): string {
   return v.toFixed(2);
 }
 
-/** Bars in a period for a timeframe, for sample-size messaging. */
-export function barsInPeriod(period: Period, timeframe: Timeframe): number {
-  return Math.floor(((period.end - period.start) / (365 * 86_400_000)) * BARS_PER_YEAR[timeframe]);
+/** Approximate bars in a period for a market and timeframe, for sample-size messaging. */
+export function barsInPeriod(period: Period, timeframe: Timeframe, market: Parameters<typeof barsPerYear>[0] = "CRYPTO"): number {
+  return Math.floor(((period.end - period.start) / (365 * 86_400_000)) * barsPerYear(market, timeframe));
 }

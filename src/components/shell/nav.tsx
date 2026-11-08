@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, FlaskConical, Home, PlayCircle, Swords, Wallet, Zap } from "lucide-react";
+import { BookOpen, FlaskConical, Globe2, Home, PlayCircle, Swords, Wallet, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/", label: "Home", icon: Home, mobile: true },
-  { href: "/lab", label: "Strategy Lab", short: "Lab", icon: FlaskConical, mobile: true },
+  { href: "/markets", label: "Markets", short: "Markets", icon: Globe2, mobile: true },
+  { href: "/lab", label: "Strategies", short: "Strategies", icon: FlaskConical, mobile: true },
   { href: "/arena", label: "Bot Arena", short: "Arena", icon: Swords, mobile: true },
-  { href: "/replay", label: "Trade Replay", short: "Replay", icon: PlayCircle, mobile: true },
-  { href: "/journal", label: "Research Journal", short: "Journal", icon: BookOpen, mobile: true },
-  { href: "/paper", label: "Paper Trading", short: "Paper", icon: Wallet, mobile: false },
+  { href: "/paper", label: "Portfolio", short: "Portfolio", icon: Wallet, mobile: true },
+  { href: "/replay", label: "Trade Replay", short: "Replay", icon: PlayCircle, mobile: false },
+  { href: "/journal", label: "Research Journal", short: "Journal", icon: BookOpen, mobile: false },
   { href: "/daily", label: "Today's Five", short: "Daily", icon: Zap, mobile: false },
 ] as const;
 

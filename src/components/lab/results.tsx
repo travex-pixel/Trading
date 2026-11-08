@@ -11,7 +11,8 @@ import { Panel, PanelBody, PanelHeader } from "@/components/ui/panel";
 import { ProvenancePlate } from "@/components/ui/provenance";
 import { Stat } from "@/components/ui/stat";
 import { FindingsList, VerdictBadge } from "@/components/ui/verdict";
-import { fmtDate, fmtDuration, fmtInt, fmtMoney, fmtNum, fmtPct, fmtPrice, signClass } from "@/lib/format";
+import { fmtDate, fmtDuration, fmtInt, fmtMoney, fmtNum, fmtPct, fmtPrice, signClass, type Currency } from "@/lib/format";
+import { MARKETS } from "@/lib/market/instruments";
 import type { LabRun } from "@/lib/lab/run";
 import { METRIC_DEFINITIONS } from "@/lib/quant/metrics";
 import type { BacktestResult, PerformanceMetrics, Timeframe } from "@/lib/quant/types";
@@ -90,7 +91,7 @@ export function EquityPanel({ run, title = "Equity curve", showBenchmarks = true
         }
       />
       <div className="px-2 pt-3 pb-1">
-        <EquityChart series={series} mode={mode} height={height} drawdown={dd} />
+        <EquityChart series={series} mode={mode} height={height} drawdown={dd} currency={run.result.currency} />
       </div>
       <Legend series={series} />
       <ProvenancePlate
@@ -100,6 +101,9 @@ export function EquityPanel({ run, title = "Equity curve", showBenchmarks = true
         timeframe={run.result.timeframe}
         feeBps={run.result.assumptions.feeBps}
         slippageBps={run.result.assumptions.slippageBps}
+        feeFixed={run.result.assumptions.feeFixed}
+        currency={run.result.currency}
+        market={MARKETS[run.result.market].shortName}
       />
     </Panel>
   );
@@ -141,7 +145,7 @@ export function VerdictPanel({ run }: { run: LabRun }) {
 
 type MetricKey = keyof PerformanceMetrics;
 
-const METRIC_ROWS: Array<{ key: MetricKey; fmt: (m: PerformanceMetrics, tf: Timeframe) => string; tone?: (m: PerformanceMetrics) => string }> = [
+const METRIC_ROWS: Array<{ key: MetricKey; fmt: (m: PerformanceMetrics, tf: Timeframe, ccy: Currency) => string; tone?: (m: PerformanceMetrics) => string }> = [
   { key: "totalReturnPct", fmt: (m) => fmtPct(m.totalReturnPct, { sign: true }), tone: (m) => signClass(m.totalReturnPct) },
   { key: "cagrPct", fmt: (m) => (m.cagrPct === null ? "–" : fmtPct(m.cagrPct, { sign: true })), tone: (m) => signClass(m.cagrPct) },
   { key: "maxDrawdownPct", fmt: (m) => fmtPct(-m.maxDrawdownPct), tone: () => "text-down" },
@@ -155,12 +159,25 @@ const METRIC_ROWS: Array<{ key: MetricKey; fmt: (m: PerformanceMetrics, tf: Time
   { key: "avgTradeReturnPct", fmt: (m) => (m.avgTradeReturnPct === null ? "–" : fmtPct(m.avgTradeReturnPct, { sign: true, digits: 2 })), tone: (m) => signClass(m.avgTradeReturnPct) },
   { key: "avgHoldingBars", fmt: (m, tf) => fmtDuration(m.avgHoldingBars, tf) },
   { key: "exposurePct", fmt: (m) => fmtPct(m.exposurePct, { digits: 0 }) },
-  { key: "totalFees", fmt: (m) => fmtMoney(m.totalFees) },
+  { key: "totalFees", fmt: (m, _tf, ccy) => fmtMoney(m.totalFees, { currency: ccy }) },
   { key: "maxConsecutiveLosses", fmt: (m) => fmtInt(m.maxConsecutiveLosses) },
-  { key: "finalEquity", fmt: (m) => fmtMoney(m.finalEquity) },
+  { key: "finalEquity", fmt: (m, _tf, ccy) => fmtMoney(m.finalEquity, { currency: ccy }) },
 ];
 
-export function MetricsTable({ columns, timeframe, highlightFirst = true, compactRows }: { columns: Array<{ name: string; metrics: PerformanceMetrics; color?: string }>; timeframe: Timeframe; highlightFirst?: boolean; compactRows?: MetricKey[] }) {
+export function MetricsTable({
+  columns,
+  timeframe,
+  highlightFirst = true,
+  compactRows,
+  currency = "AUD",
+}: {
+  columns: Array<{ name: string; metrics: PerformanceMetrics; color?: string; currency?: Currency }>;
+  timeframe: Timeframe;
+  highlightFirst?: boolean;
+  compactRows?: MetricKey[];
+  /** Default currency for money cells; a column may override it. */
+  currency?: Currency;
+}) {
   const [showDefs, setShowDefs] = useState(false);
   const rows = compactRows ? METRIC_ROWS.filter((r) => compactRows.includes(r.key)) : METRIC_ROWS;
   return (
@@ -190,7 +207,7 @@ export function MetricsTable({ columns, timeframe, highlightFirst = true, compac
                   </th>
                   {columns.map((c, i) => (
                     <td key={i} className={cn("num", r.tone ? r.tone(c.metrics) : i === 0 && highlightFirst ? "text-ink" : "text-ink-2")}>
-                      {r.fmt(c.metrics, timeframe)}
+                      {r.fmt(c.metrics, timeframe, c.currency ?? currency)}
                     </td>
                   ))}
                 </tr>
@@ -427,10 +444,10 @@ export function TradesTable({ result, limit = 50 }: { result: BacktestResult; li
                 <td className="text-ink-2">{t.asset}</td>
                 <td className="num text-ink-2 whitespace-nowrap">{fmtDate(t.entryTime)}</td>
                 <td className="num text-ink-2 whitespace-nowrap">{fmtDate(t.exitTime)}</td>
-                <td className="num text-ink-2">{fmtPrice(t.entryPrice)}</td>
-                <td className="num text-ink-2">{fmtPrice(t.exitPrice)}</td>
+                <td className="num text-ink-2">{fmtPrice(t.entryPrice, result.currency)}</td>
+                <td className="num text-ink-2">{fmtPrice(t.exitPrice, result.currency)}</td>
                 <td className="num text-ink-2">{fmtDuration(t.holdingBars, result.timeframe)}</td>
-                <td className={cn("num", signClass(t.pnl))}>{fmtMoney(t.pnl, { cents: Math.abs(t.pnl) < 100 })}</td>
+                <td className={cn("num", signClass(t.pnl))}>{fmtMoney(t.pnl, { cents: Math.abs(t.pnl) < 100, currency: result.currency })}</td>
                 <td className={cn("num", signClass(t.returnPct))}>{fmtPct(t.returnPct * 100, { sign: true })}</td>
                 <td className="text-ink-3 text-xs">{EXIT_LABEL[t.exitReason]}</td>
               </tr>

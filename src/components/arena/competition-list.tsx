@@ -11,6 +11,7 @@ import { Panel, PanelHeader } from "@/components/ui/panel";
 import { demoCompetition, describeRules } from "@/lib/arena/competition";
 import { fmtDate } from "@/lib/format";
 import { fetchCandles } from "@/lib/market/client";
+import { DEFAULT_MARKET, rotationPair } from "@/lib/market/instruments";
 import { selectCompetitions, useRepository } from "@/lib/store/use-store";
 import type { Competition } from "@/lib/store/types";
 import { LeaderCell } from "./leader-cell";
@@ -27,9 +28,10 @@ export function CompetitionList() {
   const createDemo = async () => {
     setCreating(true);
     try {
-      const series = await fetchCandles(["BTC", "ETH"], "4h");
+      const pair = rotationPair(DEFAULT_MARKET);
+      const series = await fetchCandles([...pair], "1d");
       const ref = series[0].candles;
-      const comp = demoCompetition(ref[0].time, ref[ref.length - 1].time);
+      const comp = demoCompetition(ref[0].time, ref[ref.length - 1].time, DEFAULT_MARKET);
       await put(comp);
       router.push(`/arena/${comp.id}`);
     } finally {

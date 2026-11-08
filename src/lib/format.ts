@@ -1,19 +1,32 @@
 /** Number and date formatting used across the UI. */
 
-const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
-const money0 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-const money2 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+export type Currency = "AUD" | "USD";
 
-export function fmtMoney(v: number, opts: { compact?: boolean; cents?: boolean } = {}): string {
+/** Unambiguous prefixes: an Australian-first product shows A$ and US$ rather than a bare dollar sign. */
+export const CURRENCY_PREFIX: Record<Currency, string> = { AUD: "A$", USD: "US$" };
+
+const compact = new Intl.NumberFormat("en-AU", { notation: "compact", maximumFractionDigits: 1 });
+const num0 = new Intl.NumberFormat("en-AU", { maximumFractionDigits: 0 });
+const num2 = new Intl.NumberFormat("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+export function fmtMoney(v: number, opts: { compact?: boolean; cents?: boolean; currency?: Currency; sign?: boolean } = {}): string {
   if (!Number.isFinite(v)) return "n/a";
-  if (opts.compact && Math.abs(v) >= 100_000) return `$${compact.format(v)}`;
-  return opts.cents ? money2.format(v) : money0.format(v);
+  const prefix = CURRENCY_PREFIX[opts.currency ?? "AUD"];
+  const sign = v < 0 ? "-" : opts.sign && v > 0 ? "+" : "";
+  const abs = Math.abs(v);
+  if (opts.compact && abs >= 100_000) return `${sign}${prefix}${compact.format(abs)}`;
+  return `${sign}${prefix}${opts.cents ? num2.format(abs) : num0.format(abs)}`;
 }
 
-export function fmtPrice(v: number): string {
+/** A price: whole units above 1,000, cents below, three decimals below 10. */
+export function fmtPrice(v: number, currency: Currency = "AUD"): string {
   if (!Number.isFinite(v)) return "n/a";
-  if (Math.abs(v) >= 1000) return money0.format(v);
-  return money2.format(v);
+  const prefix = CURRENCY_PREFIX[currency];
+  const abs = Math.abs(v);
+  const sign = v < 0 ? "-" : "";
+  if (abs >= 1000) return `${sign}${prefix}${num0.format(abs)}`;
+  if (abs < 10) return `${sign}${prefix}${abs.toFixed(3)}`;
+  return `${sign}${prefix}${num2.format(abs)}`;
 }
 
 export function fmtPct(v: number | null | undefined, opts: { sign?: boolean; digits?: number } = {}): string {

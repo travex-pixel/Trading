@@ -15,18 +15,20 @@ import { ProvenancePlate } from "@/components/ui/provenance";
 import { fmtInt, fmtNum, fmtPct, signClass } from "@/lib/format";
 import { defaultPeriod } from "@/lib/lab/run";
 import { useCandles } from "@/lib/market/client";
+import { DEFAULT_MARKET, MARKETS, rotationPair } from "@/lib/market/instruments";
 import { runBacktest } from "@/lib/quant/backtest";
 import { STRATEGY_LIBRARY, STRATEGY_ORDER } from "@/lib/strategies/library";
 import { cn } from "@/lib/utils";
 
 export function StrategyLibrary() {
-  const { series, error, loading } = useCandles(["BTC", "ETH"], "4h");
+  const pair = rotationPair(DEFAULT_MARKET);
+  const { series, error, loading } = useCandles([...pair], "1d");
   const rows = useMemo(() => {
     if (!series) return null;
     const period = defaultPeriod(series);
     return STRATEGY_ORDER.map((kind) => {
       const meta = STRATEGY_LIBRARY[kind];
-      const config = { ...meta.defaults, timeframe: "4h" as const };
+      const config = { ...meta.defaults, timeframe: "1d" as const };
       try {
         const result = runBacktest(config, series, period);
         return { kind, meta, result };
@@ -44,7 +46,7 @@ export function StrategyLibrary() {
     <div className="rounded-[var(--radius-md)] border border-hairline bg-panel">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-hairline px-4 py-3">
         <h2 className="text-sm font-semibold text-ink">Library</h2>
-        <p className="text-xs text-ink-3">Default settings on BTC, 4h bars, last two years. Beating buy and hold is the bar.</p>
+        <p className="text-xs text-ink-3">Default settings on {pair[0].split(":")[1]} (ASX), daily bars, last two years. Beating buy and hold is the bar.</p>
       </div>
       <ul className="divide-y divide-hairline">
         {(rows ?? STRATEGY_ORDER.map((kind) => ({ kind, meta: STRATEGY_LIBRARY[kind], result: null }))).map(({ kind, meta, result }) => {
@@ -71,7 +73,7 @@ export function StrategyLibrary() {
           );
         })}
       </ul>
-      {series ? <ProvenancePlate source={series[0].source} period={defaultPeriod(series)} timeframe="4h" feeBps={10} slippageBps={5} /> : null}
+      {series ? <ProvenancePlate source={series[0].source} period={defaultPeriod(series)} timeframe="1d" feeBps={MARKETS.ASX.defaultCosts.feeBps} slippageBps={MARKETS.ASX.defaultCosts.slippageBps} feeFixed={MARKETS.ASX.defaultCosts.feeFixed} currency="AUD" market="ASX" /> : null}
     </div>
   );
 }

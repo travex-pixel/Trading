@@ -20,6 +20,11 @@ import { STRATEGY_LIBRARY, type StrategyMeta } from "@/lib/strategies/library";
 import type { StrategyConfig, StrategyKind } from "@/lib/strategies/schema";
 import { encodeSnapshot } from "@/lib/store/snapshot";
 import { downsample } from "@/lib/utils";
+import type { DataSource } from "@/lib/quant/types";
+
+/** The instruments the daily quiz rotates through: liquid ASX names plus the ASX 200 ETF. */
+export const QUIZ_INSTRUMENTS = ["ASX:CBA", "ASX:BHP", "ASX:CSL", "ASX:STW", "ASX:WES", "ASX:MQG"];
+export const QUIZ_TIMEFRAME = "1d" as const;
 
 /* ------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -57,11 +62,20 @@ export interface DailyQuiz {
   date: string;
   seed: number;
   asset: string;
+  /** Short display name for the instrument, e.g. "CBA". */
+  symbol: string;
+  currency: string;
   timeframe: string;
   period: { start: number; end: number };
-  dataVersion: string;
-  isSynthetic: boolean;
+  source: DataSource;
   questions: QuizQuestion[];
+}
+
+/** Choose today's instrument from the available series, by the date's seed. */
+export function pickQuizSeries(date: string, available: CandleSeries[]): CandleSeries {
+  if (available.length === 0) throw new Error("No data for the quiz.");
+  const rng = mulberry32(hashSeed(`edgelab-daily-pick:${date}`));
+  return available[Math.floor(rng() * available.length)];
 }
 
 export const QUIZ_SIZE = 5;
@@ -128,11 +142,12 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
   const rng = mulberry32(seed);
   const candles = series.candles;
   if (candles.length < 400) throw new Error("Not enough data for a quiz.");
+  const symbol = series.asset.split(":")[1] ?? series.asset;
 
-  // A window of 9 to 15 months somewhere in the data, leaving warm-up room.
-  const windowMonths = 9 + Math.floor(rng() * 7);
+  // A window of 12 to 24 months somewhere in the data, leaving warm-up room for the slowest indicator.
+  const windowMonths = 12 + Math.floor(rng() * 13);
   const windowMs = windowMonths * 30.44 * 86_400_000;
-  const firstStart = candles[Math.min(candles.length - 1, 300)].time;
+  const firstStart = candles[Math.min(candles.length - 1, 120)].time;
   const lastStart = candles[candles.length - 1].time - windowMs;
   const start = lastStart > firstStart ? firstStart + rng() * (lastStart - firstStart) : firstStart;
   const period = { start: Math.floor(start), end: Math.floor(start + windowMs) };
@@ -144,7 +159,7 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
     const config = base(kind);
     try {
       const result = runBacktest(config, [series], period);
-      if (result.trades.length >= 4) candidates.push({ meta: STRATEGY_LIBRARY[kind], config, result });
+      if (result.trades.length >= 3) candidates.push({ meta: STRATEGY_LIBRARY[kind], config, result });
     } catch {
       // skip strategies that cannot run on this window
     }
@@ -172,7 +187,7 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
       id: "spot_the_random",
       kind: "spot_the_random",
       topic: "Luck or skill",
-      prompt: `Three equity curves over the same ${months} months on ${series.asset}. One of them is a bot that flips a coin every bar. Which one?`,
+      prompt: `Three equity curves over the same ${months} months on ${symbol}. One of them is a bot that flips a coin every bar. Which one?`,
       figure: { type: "curves", series: entries.map((e, i) => ({ label: labels[i], points: normalise(e.result.equity), revealName: e.name })), hideScale: true },
       choices: labels.map((l) => ({ label: `Curve ${l}` })),
       answerIndex,
@@ -190,7 +205,7 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
       id: "beat_the_market",
       kind: "beat_the_market",
       topic: "The benchmark",
-      prompt: `${c.meta.name} returned ${pct(c.result.metrics.totalReturnPct)} on ${series.asset} over these ${months} months, after fees. Did it beat simply buying and holding?`,
+      prompt: `${c.meta.name} returned ${pct(c.result.metrics.totalReturnPct)} on ${symbol} over these ${months} months, after brokerage. Did it beat simply buying and holding?`,
       figure: { type: "curves", series: [{ label: c.meta.name, points: normalise(c.result.equity), revealName: c.meta.name }] },
       choices: [{ label: "Yes, it beat buy and hold" }, { label: "No, buy and hold did better" }],
       answerIndex: beat ? 0 : 1,
@@ -224,7 +239,7 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
       id: "drawdown_guess",
       kind: "drawdown_guess",
       topic: "Pain tolerance",
-      prompt: `This is ${c.meta.name} on ${series.asset}, ending ${pct(c.result.metrics.totalReturnPct)} after ${months} months. Roughly how big was its worst fall from a peak along the way?`,
+      prompt: `This is ${c.meta.name} on ${symbol}, ending ${pct(c.result.metrics.totalReturnPct)} after ${months} months. Roughly how big was its worst fall from a peak along the way?`,
       figure: { type: "curves", series: [{ label: c.meta.name, points: normalise(c.result.equity), revealName: c.meta.name }], hideScale: true },
       choices: options.map((o) => ({ label: `About ${o}%` })),
       answerIndex,
@@ -237,10 +252,12 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
   // 4. Single trade outcome.
   {
     const c = pick(rng, candidates.filter((x) => x.result.trades.length >= 6)) ?? pick(rng, candidates);
-    const trades = c.result.trades.filter((t) => t.exitReason !== "end_of_data");
-    const t = pick(rng, trades.length ? trades : c.result.trades);
     const windowCandles = candles.filter((k) => k.time >= period.start && k.time <= period.end);
-    const entryIdx = windowCandles.findIndex((k) => k.time === t.entryTime);
+    const idxOf = (time: number) => windowCandles.findIndex((k) => k.time === time);
+    // Prefer trades with enough visible history before the entry to draw a meaningful chart.
+    const eligible = c.result.trades.filter((t) => t.exitReason !== "end_of_data" && idxOf(t.entryTime) >= 20);
+    const t = pick(rng, eligible.length ? eligible : c.result.trades);
+    const entryIdx = Math.max(1, idxOf(t.entryTime));
     const from = Math.max(0, entryIdx - 60);
     const closes = windowCandles.slice(from, entryIdx + 1).map((k) => k.close);
     const won = t.pnl > 0;
@@ -249,12 +266,12 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
       id: "trade_outcome",
       kind: "trade_outcome",
       topic: "One trade",
-      prompt: `${c.meta.name} just bought ${series.asset} at ${t.entryPrice.toLocaleString("en-US", { maximumFractionDigits: 0 })} because: "${t.entryReason}" Did this trade make money?`,
-      figure: { type: "price", closes, entryIndex: closes.length - 1, entryPrice: t.entryPrice, asset: series.asset },
+      prompt: `${c.meta.name} just bought ${symbol} at ${t.entryPrice.toLocaleString("en-AU", { maximumFractionDigits: 2 })} because: "${t.entryReason}" Did this trade make money?`,
+      figure: { type: "price", closes, entryIndex: closes.length - 1, entryPrice: t.entryPrice, asset: symbol },
       choices: [{ label: "Yes, a winner" }, { label: "No, a loser" }],
       answerIndex: won ? 0 : 1,
       lesson: `It ${won ? "won" : "lost"} ${Math.abs(t.returnPct * 100).toFixed(1)}% and closed on "${t.exitReasonText}". Across ${c.result.metrics.tradeCount} trades this strategy won ${wr.toFixed(0)}% of the time: no single trade tells you anything.`,
-      evidence: [`Exit ${t.exitPrice.toLocaleString("en-US", { maximumFractionDigits: 0 })} after ${t.holdingBars} bars · P&L ${t.pnl >= 0 ? "+" : "-"}${Math.abs(t.pnl).toFixed(0)}`, `Win rate ${wr.toFixed(0)}% · profit factor ${num(c.result.metrics.profitFactor)} · ${c.result.metrics.tradeCount} trades`],
+      evidence: [`Exit ${t.exitPrice.toLocaleString("en-AU", { maximumFractionDigits: 2 })} after ${t.holdingBars} bars · P&L ${t.pnl >= 0 ? "+" : "-"}${Math.abs(t.pnl).toFixed(0)} ${series.currency}`, `Win rate ${wr.toFixed(0)}% · profit factor ${num(c.result.metrics.profitFactor)} · ${c.result.metrics.tradeCount} trades`],
       labCode: labCode(c.config, period, dataVersion),
     });
   }
@@ -299,7 +316,7 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
       id: "fee_bite",
       kind: "fee_bite",
       topic: "Costs",
-      prompt: `${c.meta.name} traded ${c.result.metrics.tradeCount} times in ${months} months. Before costs it was ${pct(gross)}. With ${c.result.assumptions.feeBps} bp fee and ${c.result.assumptions.slippageBps} bp slippage per side, is it still positive?`,
+      prompt: `${c.meta.name} traded ${c.result.metrics.tradeCount} times in ${months} months. Before costs it was ${pct(gross)}. With ${c.result.assumptions.feeFixed > 0 ? `${c.result.assumptions.feeFixed} ${series.currency} brokerage per order` : `${c.result.assumptions.feeBps} bp fee`} and ${c.result.assumptions.slippageBps} bp slippage per side, is it still positive?`,
       figure: { type: "curves", series: [{ label: c.meta.name, points: normalise(c.result.equity), revealName: c.meta.name }] },
       choices: [{ label: "Yes, still positive" }, { label: "No, costs ate it" }],
       answerIndex: netPositive ? 0 : 1,
@@ -318,10 +335,11 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
     date,
     seed,
     asset: series.asset,
+    symbol,
+    currency: series.currency,
     timeframe: series.timeframe,
     period,
-    dataVersion,
-    isSynthetic: series.source.isSynthetic,
+    source: series.source,
     questions: five,
   };
 }

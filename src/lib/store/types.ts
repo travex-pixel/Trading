@@ -56,6 +56,8 @@ export interface Competition {
     initialCapital: number;
     feeBps: number;
     slippageBps: number;
+    /** Flat brokerage per order; optional for competitions saved before it existed. */
+    feeFixed?: number;
   };
   participants: CompetitionParticipant[];
   createdAt: number;

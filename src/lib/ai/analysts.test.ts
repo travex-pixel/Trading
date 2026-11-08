@@ -5,7 +5,7 @@ import { STRATEGY_LIBRARY } from "@/lib/strategies/library";
 import { ruleBasedReview, runBrief } from "./analysts";
 import { aiReviewSchema } from "./schema";
 
-const series = [demoSeries("BTC", "1d"), demoSeries("ETH", "1d")];
+const series = [demoSeries("ASX:CBA", "1d"), demoSeries("ASX:BHP", "1d")];
 const period = { start: series[0].candles[300].time, end: series[0].candles[series[0].candles.length - 1].time };
 
 describe("rule-based review", () => {

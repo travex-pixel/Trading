@@ -6,14 +6,15 @@
  */
 
 import { z } from "zod";
-import { strategyConfigSchema } from "@/lib/strategies/schema";
+import { assetIdSchema, strategyConfigSchema } from "@/lib/strategies/schema";
 import type { Competition } from "@/lib/store/types";
 
 export const competitionSnapshotSchema = z.object({
   v: z.literal(1),
   name: z.string().min(1).max(120),
   rules: z.object({
-    assets: z.array(z.enum(["BTC", "ETH"])).min(1).max(2),
+    assets: z.array(assetIdSchema).min(1).max(4),
+    feeFixed: z.number().min(0).max(1000).optional(),
     timeframe: z.enum(["1h", "4h", "1d"]),
     start: z.number().int().nonnegative(),
     end: z.number().int().nonnegative(),

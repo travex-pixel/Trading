@@ -2,21 +2,26 @@
 
 /**
  * The guided strategy builder. Every control maps to a field in the Zod
- * schema; there is no free-form code input anywhere.
+ * schema; there is no free-form code input anywhere. Market-aware: the
+ * instrument picker sets the market, the market sets the default costs and
+ * the execution assumptions shown beneath.
  */
 
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { InstrumentPicker } from "@/components/market/instrument-picker";
 import { Field, Input, NumberField, Segmented, Select } from "@/components/ui/field";
+import { MARKETS, defaultInstrument, instrumentsFor, marketOf, rotationPair, type MarketId } from "@/lib/market/instruments";
 import { STRATEGY_LIBRARY, STRATEGY_ORDER } from "@/lib/strategies/library";
 import type { StrategyConfig, StrategyKind, StrategyParams } from "@/lib/strategies/schema";
 import { tunableParams } from "@/lib/quant/validation";
-import type { AssetId, Timeframe } from "@/lib/quant/types";
+import type { Timeframe } from "@/lib/quant/types";
 
 export function configForKind(kind: StrategyKind, previous?: StrategyConfig): StrategyConfig {
   const defaults = STRATEGY_LIBRARY[kind].defaults;
   if (!previous) return defaults;
-  const assets: AssetId[] = kind === "momentum_rotation" ? ["BTC", "ETH"] : [previous.assets[0] ?? "BTC"];
+  const market = marketOf(previous.assets[0]);
+  const assets = kind === "momentum_rotation" ? (previous.assets.length >= 2 ? previous.assets : [...rotationPair(market)]) : [previous.assets[0] ?? defaultInstrument(market).id];
   return {
     ...defaults,
     assets,
@@ -46,14 +51,24 @@ const PARAM_LABELS: Record<string, { label: string; hint?: string; unit?: string
 
 export function StrategyForm({ config, onChange, errors = [] }: { config: StrategyConfig; onChange: (c: StrategyConfig) => void; errors?: string[] }) {
   const [advanced, setAdvanced] = useState(false);
+  const [assumptionsOpen, setAssumptionsOpen] = useState(false);
   const meta = STRATEGY_LIBRARY[config.params.kind];
   const params = config.params;
+  const market: MarketId = marketOf(config.assets[0]);
+  const spec = MARKETS[market];
+  const currency = spec.currency;
 
   const setParams = (patch: Partial<StrategyParams>) => onChange({ ...config, params: { ...params, ...patch } as StrategyParams });
   const setRisk = (patch: Partial<StrategyConfig["risk"]>) => onChange({ ...config, risk: { ...config.risk, ...patch } });
   const setCosts = (patch: Partial<StrategyConfig["costs"]>) => onChange({ ...config, costs: { ...config.costs, ...patch } });
 
   const isRotation = params.kind === "momentum_rotation";
+
+  const changeMarket = (m: MarketId) => {
+    const list = instrumentsFor(m);
+    const assets = isRotation ? [...rotationPair(m)] : [list[0].id];
+    onChange({ ...config, assets, costs: { ...MARKETS[m].defaultCosts } });
+  };
 
   return (
     <div className="space-y-5">
@@ -75,23 +90,18 @@ export function StrategyForm({ config, onChange, errors = [] }: { config: Strate
 
       <p className="text-sm text-ink-2 leading-5">{meta.summary}</p>
 
+      <InstrumentPicker
+        label={isRotation ? "Instruments to rotate between" : "Instrument"}
+        value={config.assets}
+        onChange={(ids) => onChange({ ...config, assets: ids })}
+        market={market}
+        onMarketChange={changeMarket}
+        max={isRotation ? 4 : 1}
+        min={isRotation ? 2 : 1}
+      />
+
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Asset">
-          {isRotation ? (
-            <div className="flex h-9 items-center text-sm text-ink-2">BTC and ETH, rotating</div>
-          ) : (
-            <Segmented<AssetId>
-              label="Asset"
-              value={config.assets[0]}
-              onChange={(a) => onChange({ ...config, assets: [a] })}
-              options={[
-                { value: "BTC", label: "BTC" },
-                { value: "ETH", label: "ETH" },
-              ]}
-            />
-          )}
-        </Field>
-        <Field label="Timeframe" hint="Bar size the strategy reads. Faster bars mean more trades and more fees.">
+        <Field label="Timeframe" hint={market === "CRYPTO" ? "Bar size the strategy reads. Crypto trades 24/7." : `Bar size the strategy reads. Daily bars are the natural unit for ${spec.shortName} equities; intraday bars only cover the session.`}>
           <Segmented<Timeframe>
             label="Timeframe"
             value={config.timeframe}
@@ -102,6 +112,12 @@ export function StrategyForm({ config, onChange, errors = [] }: { config: Strate
               { value: "1d", label: "1d" },
             ]}
           />
+        </Field>
+        <Field label="Market" hint={spec.description}>
+          <div className="flex h-9 items-center gap-2 text-sm text-ink-2">
+            <span className="text-ink">{spec.name}</span>
+            <span className="num text-xs text-ink-3">{currency}</span>
+          </div>
         </Field>
       </div>
 
@@ -154,7 +170,7 @@ export function StrategyForm({ config, onChange, errors = [] }: { config: Strate
             id="stop"
             label="Stop loss"
             unit="%"
-            hint="0 disables. Sells if price falls this far below entry."
+            hint="0 disables. Sells if price falls this far below entry. Gaps fill at the open."
             value={config.risk.stopLossPct === null ? 0 : Math.round(config.risk.stopLossPct * 1000) / 10}
             min={0}
             max={50}
@@ -177,7 +193,7 @@ export function StrategyForm({ config, onChange, errors = [] }: { config: Strate
 
       <button type="button" onClick={() => setAdvanced((a) => !a)} className="flex items-center gap-1 text-xs font-medium text-ink-2 hover:text-ink" aria-expanded={advanced}>
         {advanced ? <ChevronDown className="size-3.5" aria-hidden /> : <ChevronRight className="size-3.5" aria-hidden />}
-        Position sizing, costs and capital
+        Position sizing, brokerage and capital
       </button>
 
       {advanced ? (
@@ -189,7 +205,7 @@ export function StrategyForm({ config, onChange, errors = [] }: { config: Strate
               onChange={(mode) => {
                 if (mode === "fixed_fraction") setRisk({ sizing: { mode, fraction: 1 } });
                 else if (mode === "fixed_cash") setRisk({ sizing: { mode, amount: Math.round(config.initialCapital / 2) } });
-                else setRisk({ sizing: { mode, targetDailyVolPct: 2, atrPeriod: 14, maxFraction: 1 } });
+                else setRisk({ sizing: { mode, targetDailyVolPct: 1.5, atrPeriod: 14, maxFraction: 1 } });
               }}
               options={[
                 { value: "fixed_fraction", label: "Fraction of equity" },
@@ -213,7 +229,7 @@ export function StrategyForm({ config, onChange, errors = [] }: { config: Strate
             <NumberField
               id="amount"
               label="Amount per position"
-              unit="$"
+              unit={currency}
               value={config.risk.sizing.amount}
               min={1}
               max={config.initialCapital}
@@ -245,12 +261,36 @@ export function StrategyForm({ config, onChange, errors = [] }: { config: Strate
               />
             </div>
           ) : null}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <NumberField id="fee" label="Fee per side" unit="bp" hint="10 bp = 0.10%, a typical taker fee." value={config.costs.feeBps} min={0} max={100} step={1} onChange={(feeBps) => setCosts({ feeBps })} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <NumberField id="feefixed" label="Brokerage per order" unit={currency} hint={market === "ASX" ? "Flat fee per order, the norm for Australian brokers." : "Flat fee per order; many brokers charge none."} value={config.costs.feeFixed ?? 0} min={0} max={200} step={0.5} onChange={(feeFixed) => setCosts({ feeFixed })} />
+            <NumberField id="fee" label="Fee per side" unit="bp" hint="Percentage commission. 10 bp = 0.10%." value={config.costs.feeBps} min={0} max={100} step={1} onChange={(feeBps) => setCosts({ feeBps })} />
             <NumberField id="slip" label="Slippage per side" unit="bp" value={config.costs.slippageBps} min={0} max={100} step={1} onChange={(slippageBps) => setCosts({ slippageBps })} />
-            <NumberField id="cap" label="Starting capital" unit="$" value={config.initialCapital} min={100} max={10_000_000} step={100} onChange={(initialCapital) => onChange({ ...config, initialCapital })} />
+            <NumberField id="cap" label="Starting capital" unit={currency} value={config.initialCapital} min={100} max={10_000_000} step={100} onChange={(initialCapital) => onChange({ ...config, initialCapital })} />
           </div>
+          <button type="button" className="text-xs text-ink-3 hover:text-ink" onClick={() => setCosts({ ...spec.defaultCosts })}>
+            Reset to {spec.shortName} defaults ({spec.defaultCosts.feeFixed ? `${spec.defaultCosts.feeFixed} ${currency}/order, ` : ""}
+            {spec.defaultCosts.feeBps} bp fee, {spec.defaultCosts.slippageBps} bp slippage)
+          </button>
         </div>
+      ) : null}
+
+      <button type="button" onClick={() => setAssumptionsOpen((a) => !a)} className="flex items-center gap-1 text-xs font-medium text-ink-2 hover:text-ink" aria-expanded={assumptionsOpen}>
+        {assumptionsOpen ? <ChevronDown className="size-3.5" aria-hidden /> : <ChevronRight className="size-3.5" aria-hidden />}
+        {spec.shortName} execution assumptions
+      </button>
+      {assumptionsOpen ? (
+        <ul className="space-y-1.5 border-l border-hairline pl-4">
+          {spec.assumptions.map((a) => (
+            <li key={a} className="flex gap-2 text-xs text-ink-2 leading-4">
+              <span aria-hidden className="mt-[6px] size-1 shrink-0 rounded-full bg-annot" />
+              {a}
+            </li>
+          ))}
+          <li className="flex gap-2 text-xs text-ink-2 leading-4">
+            <span aria-hidden className="mt-[6px] size-1 shrink-0 rounded-full bg-annot" />
+            Short selling: {spec.shortSelling}
+          </li>
+        </ul>
       ) : null}
 
       {errors.length ? (

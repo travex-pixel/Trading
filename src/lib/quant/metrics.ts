@@ -6,8 +6,7 @@
  * reason instead of the figure.
  */
 
-import type { EquityPoint, PerformanceMetrics, ResultWarning, Timeframe, Trade } from "./types";
-import { BARS_PER_YEAR } from "./types";
+import type { EquityPoint, PerformanceMetrics, ResultWarning, Trade } from "./types";
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
 
@@ -123,11 +122,11 @@ export function maxConsecutiveLosses(trades: readonly Trade[]): number {
 export function computeMetrics(
   equity: readonly EquityPoint[],
   trades: readonly Trade[],
-  timeframe: Timeframe,
+  /** Bars per calendar year for this market and timeframe (see barsPerYear in the calendar module). */
+  barsPerYear: number,
   initialCapital: number,
 ): { metrics: PerformanceMetrics; warnings: ResultWarning[] } {
   const warnings: ResultWarning[] = [];
-  const barsPerYear = BARS_PER_YEAR[timeframe];
   const finalEquity = equity.length ? equity[equity.length - 1].equity : initialCapital;
   const totalReturnPct = initialCapital > 0 ? (finalEquity / initialCapital - 1) * 100 : 0;
   const returns = equityReturns(equity);
