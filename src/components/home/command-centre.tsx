@@ -21,6 +21,7 @@ import type { Experiment } from "@/lib/store/types";
 import { selectExperiments, selectPortfolios, useRepository } from "@/lib/store/use-store";
 import { cn } from "@/lib/utils";
 import { OnboardingPanel, useOnboarding } from "./onboarding";
+import { DailyTeaser } from "@/components/daily/daily-quiz";
 
 export function CommandCentre() {
   const { series, error, loading } = useCandles(["BTC", "ETH"], "4h");
@@ -74,6 +75,7 @@ export function CommandCentre() {
         }
       />
 
+      <DailyTeaser />
       {onboarding.dismissed === false ? <OnboardingPanel onDismiss={onboarding.dismiss} /> : null}
 
       {error ? <ErrorState title="Market data unavailable" body={error} /> : null}

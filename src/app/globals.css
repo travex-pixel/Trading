@@ -203,6 +203,21 @@ input[type="radio"] {
   text-align: right;
 }
 
+/* The one authored motion: a question or result settling into place. Visible by default; motion only enhances. */
+@keyframes quiz-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.quiz-enter {
+  animation: quiz-in 360ms var(--ease-out-quart) both;
+}
+
 /* Reduced motion: keep everything visible, drop transitions. */
 @media (prefers-reduced-motion: reduce) {
   *,

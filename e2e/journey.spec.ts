@@ -82,6 +82,27 @@ test("full research journey", async ({ page }) => {
   await expect(page.getByText("RSI reversion 14").first()).toBeVisible();
 });
 
+test("today's five can be played to a score and resumes as completed", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: /Today's Five/ }).first().click();
+  await expect(page).toHaveURL(/\/daily/);
+  await page.getByRole("button", { name: /Play/ }).click();
+  for (let i = 0; i < 5; i++) {
+    const choices = page.getByRole("group", { name: "Answers" }).getByRole("button");
+    await choices.first().click();
+    const next = page.getByRole("button", { name: /Next question|See my score/ });
+    await expect(next).toBeVisible();
+    await next.click();
+  }
+  await expect(page.getByText(/\/ 5/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /Share your score/ })).toBeVisible();
+  // Reloading shows the score, not the intro, and the home teaser offers a review.
+  await page.reload();
+  await expect(page.getByRole("button", { name: /Review the answers/ })).toBeVisible({ timeout: 20_000 });
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: /Today's Five/ }).first()).toContainText("Review");
+});
+
 test("shared experiment links validate on decode", async ({ page }) => {
   await page.goto("/s/not-a-real-code!!");
   await expect(page.getByText(/cannot be opened|invalid|malformed/i).first()).toBeVisible();

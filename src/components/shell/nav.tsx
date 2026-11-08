@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, FlaskConical, Home, PlayCircle, Swords, Wallet } from "lucide-react";
+import { BookOpen, FlaskConical, Home, PlayCircle, Swords, Wallet, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
@@ -12,6 +12,7 @@ const ITEMS = [
   { href: "/replay", label: "Trade Replay", short: "Replay", icon: PlayCircle, mobile: true },
   { href: "/journal", label: "Research Journal", short: "Journal", icon: BookOpen, mobile: true },
   { href: "/paper", label: "Paper Trading", short: "Paper", icon: Wallet, mobile: false },
+  { href: "/daily", label: "Today's Five", short: "Daily", icon: Zap, mobile: false },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
