@@ -23,7 +23,14 @@ import { downsample } from "@/lib/utils";
 import type { DataSource } from "@/lib/quant/types";
 
 /** The instruments the daily quiz rotates through: liquid ASX names plus the ASX 200 ETF. */
-export const QUIZ_INSTRUMENTS = ["ASX:CBA", "ASX:BHP", "ASX:CSL", "ASX:STW", "ASX:WES", "ASX:MQG"];
+export const QUIZ_INSTRUMENTS = [
+  "ASX:CBA",
+  "ASX:BHP",
+  "ASX:CSL",
+  "ASX:STW",
+  "ASX:WES",
+  "ASX:MQG",
+];
 export const QUIZ_TIMEFRAME = "1d" as const;
 
 /* ------------------------------------------------------------------------- */
@@ -31,9 +38,25 @@ export const QUIZ_TIMEFRAME = "1d" as const;
 /* ------------------------------------------------------------------------- */
 
 export type QuizFigure =
-  | { type: "curves"; series: Array<{ label: string; points: number[]; revealName: string }>; hideScale?: boolean }
-  | { type: "price"; closes: number[]; entryIndex: number; entryPrice: number; asset: string }
-  | { type: "stats"; rows: Array<{ label: string; cells: Array<{ key: string; value: string }> }> };
+  | {
+      type: "curves";
+      series: Array<{ label: string; points: number[]; revealName: string }>;
+      hideScale?: boolean;
+    }
+  | {
+      type: "price";
+      closes: number[];
+      entryIndex: number;
+      entryPrice: number;
+      asset: string;
+    }
+  | {
+      type: "stats";
+      rows: Array<{
+        label: string;
+        cells: Array<{ key: string; value: string }>;
+      }>;
+    };
 
 export interface QuizChoice {
   label: string;
@@ -42,7 +65,13 @@ export interface QuizChoice {
 
 export interface QuizQuestion {
   id: string;
-  kind: "spot_the_random" | "beat_the_market" | "drawdown_guess" | "trade_outcome" | "risk_adjusted" | "fee_bite";
+  kind:
+    | "spot_the_random"
+    | "beat_the_market"
+    | "drawdown_guess"
+    | "trade_outcome"
+    | "risk_adjusted"
+    | "fee_bite";
   /** Short category shown above the question. */
   topic: string;
   prompt: string;
@@ -72,7 +101,10 @@ export interface DailyQuiz {
 }
 
 /** Choose today's instrument from the available series, by the date's seed. */
-export function pickQuizSeries(date: string, available: CandleSeries[]): CandleSeries {
+export function pickQuizSeries(
+  date: string,
+  available: CandleSeries[],
+): CandleSeries {
   if (available.length === 0) throw new Error("No data for the quiz.");
   const rng = mulberry32(hashSeed(`edgelab-daily-pick:${date}`));
   return available[Math.floor(rng() * available.length)];
@@ -88,8 +120,10 @@ export function utcDateKey(now: number = Date.now()): string {
   return new Date(now).toISOString().slice(0, 10);
 }
 
-const pct = (v: number, digits = 1) => `${v >= 0 ? "+" : ""}${v.toFixed(digits)}%`;
-const num = (v: number | null) => (v === null || !Number.isFinite(v) ? "n/a" : v.toFixed(2));
+const pct = (v: number, digits = 1) =>
+  `${v >= 0 ? "+" : ""}${v.toFixed(digits)}%`;
+const num = (v: number | null) =>
+  v === null || !Number.isFinite(v) ? "n/a" : v.toFixed(2);
 
 function pick<T>(rng: () => number, items: readonly T[]): T {
   return items[Math.floor(rng() * items.length)];
@@ -113,7 +147,14 @@ function monthsBetween(a: number, b: number): number {
   return Math.max(1, Math.round((b - a) / (30.44 * 86_400_000)));
 }
 
-const QUIZ_KINDS: StrategyKind[] = ["ma_crossover", "rsi_mean_reversion", "macd_momentum", "breakout", "trend_following", "tsmom"];
+const QUIZ_KINDS: StrategyKind[] = [
+  "ma_crossover",
+  "rsi_mean_reversion",
+  "macd_momentum",
+  "breakout",
+  "trend_following",
+  "tsmom",
+];
 
 interface Candidate {
   meta: StrategyMeta;
@@ -121,9 +162,20 @@ interface Candidate {
   result: BacktestResult;
 }
 
-function labCode(config: StrategyConfig, period: { start: number; end: number }, dataVersion: string): string | null {
+function labCode(
+  config: StrategyConfig,
+  period: { start: number; end: number },
+  dataVersion: string,
+): string | null {
   try {
-    return encodeSnapshot({ v: 1, config, start: period.start, end: period.end, data: dataVersion, title: `Today's Five · ${config.name}` });
+    return encodeSnapshot({
+      v: 1,
+      config,
+      start: period.start,
+      end: period.end,
+      data: dataVersion,
+      title: `Today's Five · ${config.name}`,
+    });
   } catch {
     return null;
   }
@@ -138,7 +190,9 @@ function labCode(config: StrategyConfig, period: { start: number; end: number },
  * the same date, dataset version and series produce the same quiz.
  */
 export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
-  const seed = hashSeed(`edgelab-daily:${date}:${series.source.version}:${series.asset}`);
+  const seed = hashSeed(
+    `edgelab-daily:${date}:${series.source.version}:${series.asset}`,
+  );
   const rng = mulberry32(seed);
   const candles = series.candles;
   if (candles.length < 400) throw new Error("Not enough data for a quiz.");
@@ -149,25 +203,48 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
   const windowMs = windowMonths * 30.44 * 86_400_000;
   const firstStart = candles[Math.min(candles.length - 1, 120)].time;
   const lastStart = candles[candles.length - 1].time - windowMs;
-  const start = lastStart > firstStart ? firstStart + rng() * (lastStart - firstStart) : firstStart;
-  const period = { start: Math.floor(start), end: Math.floor(start + windowMs) };
+  const start =
+    lastStart > firstStart
+      ? firstStart + rng() * (lastStart - firstStart)
+      : firstStart;
+  const period = {
+    start: Math.floor(start),
+    end: Math.floor(start + windowMs),
+  };
 
-  const base = (kind: StrategyKind): StrategyConfig => ({ ...STRATEGY_LIBRARY[kind].defaults, assets: [series.asset], timeframe: series.timeframe });
+  const base = (kind: StrategyKind): StrategyConfig => ({
+    ...STRATEGY_LIBRARY[kind].defaults,
+    assets: [series.asset],
+    timeframe: series.timeframe,
+  });
 
   const candidates: Candidate[] = [];
   for (const kind of QUIZ_KINDS) {
     const config = base(kind);
     try {
       const result = runBacktest(config, [series], period);
-      if (result.trades.length >= 3) candidates.push({ meta: STRATEGY_LIBRARY[kind], config, result });
+      if (result.trades.length >= 3)
+        candidates.push({ meta: STRATEGY_LIBRARY[kind], config, result });
     } catch {
       // skip strategies that cannot run on this window
     }
   }
-  const bh = runBacktest(buyAndHoldConfig(base("buy_and_hold")), [series], period);
-  const randomConfig: StrategyConfig = { ...base("random_baseline"), params: { kind: "random_baseline", seed: Math.floor(rng() * 10_000), flipProbability: 0.05 } };
+  const bh = runBacktest(
+    buyAndHoldConfig(base("buy_and_hold")),
+    [series],
+    period,
+  );
+  const randomConfig: StrategyConfig = {
+    ...base("random_baseline"),
+    params: {
+      kind: "random_baseline",
+      seed: Math.floor(rng() * 10_000),
+      flipProbability: 0.05,
+    },
+  };
   const random = runBacktest(randomConfig, [series], period);
-  if (candidates.length < 2) throw new Error("Not enough strategies traded in this window.");
+  if (candidates.length < 2)
+    throw new Error("Not enough strategies traded in this window.");
 
   const months = monthsBetween(period.start, period.end);
   const dataVersion = series.source.version;
@@ -187,12 +264,23 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
       id: "spot_the_random",
       kind: "spot_the_random",
       topic: "Luck or skill",
-      prompt: `Three equity curves over the same ${months} months on ${symbol}. One of them is a bot that flips a coin every bar. Which one?`,
-      figure: { type: "curves", series: entries.map((e, i) => ({ label: labels[i], points: normalise(e.result.equity), revealName: e.name })), hideScale: true },
+      prompt: `Three equity curves over the same ${months} months on ${symbol}. One of them is just a coin flip every bar. Can you spot it?`,
+      figure: {
+        type: "curves",
+        series: entries.map((e, i) => ({
+          label: labels[i],
+          points: normalise(e.result.equity),
+          revealName: e.name,
+        })),
+        hideScale: true,
+      },
       choices: labels.map((l) => ({ label: `Curve ${l}` })),
       answerIndex,
-      lesson: `The coin flip was ${labels[answerIndex]}. It ${random.metrics.totalReturnPct >= 0 ? "made" : "lost"} ${Math.abs(random.metrics.totalReturnPct).toFixed(1)}% over ${months} months, which is why a good-looking curve proves nothing on its own.`,
-      evidence: entries.map((e, i) => `${labels[i]} · ${e.name} · ${pct(e.result.metrics.totalReturnPct)} · max DD ${pct(-e.result.metrics.maxDrawdownPct)} · ${e.result.metrics.tradeCount} trades`),
+      lesson: `The coin flip was ${labels[answerIndex]}. It ${random.metrics.totalReturnPct >= 0 ? "made" : "lost"} ${Math.abs(random.metrics.totalReturnPct).toFixed(1)}% over ${months} months, which is why a nice-looking curve on its own does not tell you much.`,
+      evidence: entries.map(
+        (e, i) =>
+          `${labels[i]} · ${e.name} · ${pct(e.result.metrics.totalReturnPct)} · max DD ${pct(-e.result.metrics.maxDrawdownPct)} · ${e.result.metrics.tradeCount} trades`,
+      ),
       labCode: null,
     });
   }
@@ -205,21 +293,41 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
       id: "beat_the_market",
       kind: "beat_the_market",
       topic: "The benchmark",
-      prompt: `${c.meta.name} returned ${pct(c.result.metrics.totalReturnPct)} on ${symbol} over these ${months} months, after brokerage. Did it beat simply buying and holding?`,
-      figure: { type: "curves", series: [{ label: c.meta.name, points: normalise(c.result.equity), revealName: c.meta.name }] },
-      choices: [{ label: "Yes, it beat buy and hold" }, { label: "No, buy and hold did better" }],
+      prompt: `${c.meta.name} returned ${pct(c.result.metrics.totalReturnPct)} on ${symbol} over these ${months} months, after brokerage. Did it do better than simply buying and holding?`,
+      figure: {
+        type: "curves",
+        series: [
+          {
+            label: c.meta.name,
+            points: normalise(c.result.equity),
+            revealName: c.meta.name,
+          },
+        ],
+      },
+      choices: [
+        { label: "Yes, it beat buy and hold" },
+        { label: "No, buy and hold did better" },
+      ],
       answerIndex: beat ? 0 : 1,
       lesson: beat
-        ? `Yes: buy and hold made ${pct(bh.metrics.totalReturnPct)} with a ${pct(-bh.metrics.maxDrawdownPct)} worst fall, so the strategy earned its activity here. One window is still one window.`
-        : `No: buy and hold made ${pct(bh.metrics.totalReturnPct)}. A positive return is not an edge. Beating the thing you could have done for free is the minimum bar.`,
-      evidence: [`Strategy ${pct(c.result.metrics.totalReturnPct)} · Sharpe ${num(c.result.metrics.sharpe)} · ${c.result.metrics.tradeCount} trades`, `Buy and hold ${pct(bh.metrics.totalReturnPct)} · Sharpe ${num(bh.metrics.sharpe)} · max DD ${pct(-bh.metrics.maxDrawdownPct)}`],
+        ? `Yes: buy and hold made ${pct(bh.metrics.totalReturnPct)} with a ${pct(-bh.metrics.maxDrawdownPct)} worst fall, so the strategy earned its keep here. One window is still only one window, though.`
+        : `No: buy and hold made ${pct(bh.metrics.totalReturnPct)}. A positive return feels good, but the fairer test is beating what you could have done for free by just holding.`,
+      evidence: [
+        `Strategy ${pct(c.result.metrics.totalReturnPct)} · Sharpe ${num(c.result.metrics.sharpe)} · ${c.result.metrics.tradeCount} trades`,
+        `Buy and hold ${pct(bh.metrics.totalReturnPct)} · Sharpe ${num(bh.metrics.sharpe)} · max DD ${pct(-bh.metrics.maxDrawdownPct)}`,
+      ],
       labCode: labCode(c.config, period, dataVersion),
     });
   }
 
   // 3. Guess the drawdown.
   {
-    const c = pick(rng, candidates.filter((x) => x.result.metrics.maxDrawdownPct >= 8) ?? candidates) ?? pick(rng, candidates);
+    const c =
+      pick(
+        rng,
+        candidates.filter((x) => x.result.metrics.maxDrawdownPct >= 8) ??
+          candidates,
+      ) ?? pick(rng, candidates);
     const actual = c.result.metrics.maxDrawdownPct;
     const rounded = Math.round(actual / 5) * 5;
     const distractors = new Set<number>();
@@ -229,33 +337,63 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
       if (v >= 5 && v <= 95 && v !== rounded) distractors.add(v);
       if (distractors.size === 3) break;
     }
-    while (distractors.size < 3) distractors.add(rounded + 5 * (distractors.size + 4));
+    while (distractors.size < 3)
+      distractors.add(rounded + 5 * (distractors.size + 4));
     const options = shuffle(rng, [rounded, ...distractors]);
     const answerIndex = options.indexOf(rounded);
     const peak = c.result.metrics.maxDrawdownPeakTime;
     const trough = c.result.metrics.maxDrawdownTroughTime;
-    const fmtD = (t: number | null) => (t === null ? "" : new Date(t).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }));
+    const fmtD = (t: number | null) =>
+      t === null
+        ? ""
+        : new Date(t).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            timeZone: "UTC",
+          });
     questions.push({
       id: "drawdown_guess",
       kind: "drawdown_guess",
       topic: "Pain tolerance",
-      prompt: `This is ${c.meta.name} on ${symbol}, ending ${pct(c.result.metrics.totalReturnPct)} after ${months} months. Roughly how big was its worst fall from a peak along the way?`,
-      figure: { type: "curves", series: [{ label: c.meta.name, points: normalise(c.result.equity), revealName: c.meta.name }], hideScale: true },
+      prompt: `This is ${c.meta.name} on ${symbol}, ending ${pct(c.result.metrics.totalReturnPct)} after ${months} months. Roughly how far did it fall from its high point at the worst moment?`,
+      figure: {
+        type: "curves",
+        series: [
+          {
+            label: c.meta.name,
+            points: normalise(c.result.equity),
+            revealName: c.meta.name,
+          },
+        ],
+        hideScale: true,
+      },
       choices: options.map((o) => ({ label: `About ${o}%` })),
       answerIndex,
-      lesson: `The biggest fall was ${pct(-actual)}, from ${fmtD(peak)} to ${fmtD(trough)}. The question that matters is whether you would have kept following the rules at the bottom.`,
-      evidence: [`Max drawdown ${pct(-actual)} · recovered ${c.result.metrics.totalReturnPct > 0 ? "to a gain" : "only partly"} · ${c.result.metrics.maxDrawdownDurationBars} bars peak to trough`],
+      lesson: `The biggest fall was ${pct(-actual)}, from ${fmtD(peak)} to ${fmtD(trough)}. Worth asking yourself: would you have stuck with the rules at the bottom?`,
+      evidence: [
+        `Max drawdown ${pct(-actual)} · recovered ${c.result.metrics.totalReturnPct > 0 ? "to a gain" : "only partly"} · ${c.result.metrics.maxDrawdownDurationBars} bars peak to trough`,
+      ],
       labCode: labCode(c.config, period, dataVersion),
     });
   }
 
   // 4. Single trade outcome.
   {
-    const c = pick(rng, candidates.filter((x) => x.result.trades.length >= 6)) ?? pick(rng, candidates);
-    const windowCandles = candles.filter((k) => k.time >= period.start && k.time <= period.end);
-    const idxOf = (time: number) => windowCandles.findIndex((k) => k.time === time);
+    const c =
+      pick(
+        rng,
+        candidates.filter((x) => x.result.trades.length >= 6),
+      ) ?? pick(rng, candidates);
+    const windowCandles = candles.filter(
+      (k) => k.time >= period.start && k.time <= period.end,
+    );
+    const idxOf = (time: number) =>
+      windowCandles.findIndex((k) => k.time === time);
     // Prefer trades with enough visible history before the entry to draw a meaningful chart.
-    const eligible = c.result.trades.filter((t) => t.exitReason !== "end_of_data" && idxOf(t.entryTime) >= 20);
+    const eligible = c.result.trades.filter(
+      (t) => t.exitReason !== "end_of_data" && idxOf(t.entryTime) >= 20,
+    );
     const t = pick(rng, eligible.length ? eligible : c.result.trades);
     const entryIdx = Math.max(1, idxOf(t.entryTime));
     const from = Math.max(0, entryIdx - 60);
@@ -266,23 +404,40 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
       id: "trade_outcome",
       kind: "trade_outcome",
       topic: "One trade",
-      prompt: `${c.meta.name} just bought ${symbol} at ${t.entryPrice.toLocaleString("en-AU", { maximumFractionDigits: 2 })} because: "${t.entryReason}" Did this trade make money?`,
-      figure: { type: "price", closes, entryIndex: closes.length - 1, entryPrice: t.entryPrice, asset: symbol },
+      prompt: `${c.meta.name} just bought ${symbol} at ${t.entryPrice.toLocaleString("en-AU", { maximumFractionDigits: 2 })} because: "${t.entryReason}" Did this one make money?`,
+      figure: {
+        type: "price",
+        closes,
+        entryIndex: closes.length - 1,
+        entryPrice: t.entryPrice,
+        asset: symbol,
+      },
       choices: [{ label: "Yes, a winner" }, { label: "No, a loser" }],
       answerIndex: won ? 0 : 1,
-      lesson: `It ${won ? "won" : "lost"} ${Math.abs(t.returnPct * 100).toFixed(1)}% and closed on "${t.exitReasonText}". Across ${c.result.metrics.tradeCount} trades this strategy won ${wr.toFixed(0)}% of the time: no single trade tells you anything.`,
-      evidence: [`Exit ${t.exitPrice.toLocaleString("en-AU", { maximumFractionDigits: 2 })} after ${t.holdingBars} bars · P&L ${t.pnl >= 0 ? "+" : "-"}${Math.abs(t.pnl).toFixed(0)} ${series.currency}`, `Win rate ${wr.toFixed(0)}% · profit factor ${num(c.result.metrics.profitFactor)} · ${c.result.metrics.tradeCount} trades`],
+      lesson: `It ${won ? "won" : "lost"} ${Math.abs(t.returnPct * 100).toFixed(1)}% and closed on "${t.exitReasonText}". Across ${c.result.metrics.tradeCount} trades it won ${wr.toFixed(0)}% of the time, so one trade on its own says very little.`,
+      evidence: [
+        `Exit ${t.exitPrice.toLocaleString("en-AU", { maximumFractionDigits: 2 })} after ${t.holdingBars} bars · P&L ${t.pnl >= 0 ? "+" : "-"}${Math.abs(t.pnl).toFixed(0)} ${series.currency}`,
+        `Win rate ${wr.toFixed(0)}% · profit factor ${num(c.result.metrics.profitFactor)} · ${c.result.metrics.tradeCount} trades`,
+      ],
       labCode: labCode(c.config, period, dataVersion),
     });
   }
 
   // 5. Risk-adjusted: which earned more per unit of risk?
   {
-    const withSharpe = candidates.filter((x) => x.result.metrics.sharpe !== null);
+    const withSharpe = candidates.filter(
+      (x) => x.result.metrics.sharpe !== null,
+    );
     const pool = withSharpe.length >= 2 ? withSharpe : candidates;
     const [a, b] = shuffle(rng, pool).slice(0, 2);
-    const sa = a.result.metrics.sharpe ?? a.result.metrics.totalReturnPct / Math.max(1, a.result.metrics.maxDrawdownPct);
-    const sb = b.result.metrics.sharpe ?? b.result.metrics.totalReturnPct / Math.max(1, b.result.metrics.maxDrawdownPct);
+    const sa =
+      a.result.metrics.sharpe ??
+      a.result.metrics.totalReturnPct /
+        Math.max(1, a.result.metrics.maxDrawdownPct);
+    const sb =
+      b.result.metrics.sharpe ??
+      b.result.metrics.totalReturnPct /
+        Math.max(1, b.result.metrics.maxDrawdownPct);
     const answerIndex = sa >= sb ? 0 : 1;
     const row = (label: string, c: Candidate) => ({
       label,
@@ -296,20 +451,30 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
       id: "risk_adjusted",
       kind: "risk_adjusted",
       topic: "Risk-adjusted",
-      prompt: "Two strategies, same asset, same months, same costs. Which one made more money for the amount of risk it took?",
+      prompt:
+        "Two strategies, same asset, same months, same costs. Which one earned more for the amount of risk it took?",
       figure: { type: "stats", rows: [row("A", a), row("B", b)] },
-      choices: [{ label: "A", detail: a.meta.name }, { label: "B", detail: b.meta.name }],
+      choices: [
+        { label: "A", detail: a.meta.name },
+        { label: "B", detail: b.meta.name },
+      ],
       answerIndex,
-      lesson: `${answerIndex === 0 ? "A" : "B"} (${(answerIndex === 0 ? a : b).meta.name}) had the higher Sharpe ratio, ${num(Math.max(sa, sb))} against ${num(Math.min(sa, sb))}. Return is what you see. The swings along the way are what you pay for it.`,
-      evidence: [`A · ${a.meta.name} · Sharpe ${num(sa)}`, `B · ${b.meta.name} · Sharpe ${num(sb)}`],
+      lesson: `${answerIndex === 0 ? "A" : "B"} (${(answerIndex === 0 ? a : b).meta.name}) had the higher Sharpe ratio, ${num(Math.max(sa, sb))} against ${num(Math.min(sa, sb))}. Return is the part you see. The swings along the way are the price you pay for it.`,
+      evidence: [
+        `A · ${a.meta.name} · Sharpe ${num(sa)}`,
+        `B · ${b.meta.name} · Sharpe ${num(sb)}`,
+      ],
       labCode: labCode((answerIndex === 0 ? a : b).config, period, dataVersion),
     });
   }
 
   // 6. The fee bite.
   {
-    const c = [...candidates].sort((x, y) => y.result.metrics.tradeCount - x.result.metrics.tradeCount)[0];
-    const feeShare = (c.result.metrics.totalFees / c.result.assumptions.initialCapital) * 100;
+    const c = [...candidates].sort(
+      (x, y) => y.result.metrics.tradeCount - x.result.metrics.tradeCount,
+    )[0];
+    const feeShare =
+      (c.result.metrics.totalFees / c.result.assumptions.initialCapital) * 100;
     const gross = c.result.metrics.totalReturnPct + feeShare;
     const netPositive = c.result.metrics.totalReturnPct > 0;
     questions.push({
@@ -317,17 +482,34 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
       kind: "fee_bite",
       topic: "Costs",
       prompt: `${c.meta.name} traded ${c.result.metrics.tradeCount} times in ${months} months. Before costs it was ${pct(gross)}. With ${c.result.assumptions.feeFixed > 0 ? `${c.result.assumptions.feeFixed} ${series.currency} brokerage per order` : `${c.result.assumptions.feeBps} bp fee`} and ${c.result.assumptions.slippageBps} bp slippage per side, is it still positive?`,
-      figure: { type: "curves", series: [{ label: c.meta.name, points: normalise(c.result.equity), revealName: c.meta.name }] },
-      choices: [{ label: "Yes, still positive" }, { label: "No, costs ate it" }],
+      figure: {
+        type: "curves",
+        series: [
+          {
+            label: c.meta.name,
+            points: normalise(c.result.equity),
+            revealName: c.meta.name,
+          },
+        ],
+      },
+      choices: [
+        { label: "Yes, still positive" },
+        { label: "No, costs ate it" },
+      ],
       answerIndex: netPositive ? 0 : 1,
-      lesson: `${netPositive ? "Yes" : "No"}: costs took ${pct(feeShare, 1)} of starting capital, leaving ${pct(c.result.metrics.totalReturnPct)}. Every extra trade is a toll, and frequent strategies pay it ${c.result.metrics.tradeCount} times.`,
-      evidence: [`Gross ${pct(gross)} · costs ${pct(-feeShare)} · net ${pct(c.result.metrics.totalReturnPct)}`],
+      lesson: `${netPositive ? "Yes" : "No"}: costs took ${pct(feeShare, 1)} of starting capital, leaving ${pct(c.result.metrics.totalReturnPct)}. Each trade pays a small toll, and this busy strategy paid it ${c.result.metrics.tradeCount} times.`,
+      evidence: [
+        `Gross ${pct(gross)} · costs ${pct(-feeShare)} · net ${pct(c.result.metrics.totalReturnPct)}`,
+      ],
       labCode: labCode(c.config, period, dataVersion),
     });
   }
 
   // Keep five, dropping one of the two "yes/no" money questions so the set stays varied.
-  const dropCandidates: QuizQuestion["kind"][] = ["beat_the_market", "fee_bite"];
+  const dropCandidates: QuizQuestion["kind"][] = [
+    "beat_the_market",
+    "fee_bite",
+  ];
   const drop = pick(rng, dropCandidates);
   const five = questions.filter((q) => q.kind !== drop).slice(0, QUIZ_SIZE);
 
@@ -348,21 +530,52 @@ export function buildDailyQuiz(date: string, series: CandleSeries): DailyQuiz {
 /* Scoring and sharing                                                        */
 /* ------------------------------------------------------------------------- */
 
-export function scoreQuiz(quiz: DailyQuiz, answers: Array<number | null>): { score: number; marks: boolean[] } {
+export function scoreQuiz(
+  quiz: DailyQuiz,
+  answers: Array<number | null>,
+): { score: number; marks: boolean[] } {
   const marks = quiz.questions.map((q, i) => answers[i] === q.answerIndex);
   return { score: marks.filter(Boolean).length, marks };
 }
 
-export function shareText(quiz: DailyQuiz, marks: boolean[], streak: number, origin: string): string {
+export function shareText(
+  quiz: DailyQuiz,
+  marks: boolean[],
+  streak: number,
+  origin: string,
+): string {
   const glyphs = marks.map((m) => (m ? "■" : "□")).join("");
-  const date = new Date(quiz.date + "T00:00:00Z").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+  const date = new Date(quiz.date + "T00:00:00Z").toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
   const streakLine = streak > 1 ? ` · ${streak}-day streak` : "";
   return `EdgeLab · Today's Five · ${date}\n${marks.filter(Boolean).length}/${QUIZ_SIZE} ${glyphs}${streakLine}\nCan you tell an edge from luck? ${origin}/daily`;
 }
 
-export function verdictForScore(score: number): { title: string; body: string } {
-  if (score === QUIZ_SIZE) return { title: "Five for five", body: "Well calibrated. The habit now is to demand the same evidence from your own strategies." };
-  if (score >= 3) return { title: "Better than most", body: "Most people score two or three. The misses are where overconfidence lives, so read the lessons again tomorrow." };
-  if (score >= 1) return { title: "Honest score", body: "These questions are designed to be hard. The market does not reward the obvious reading of a chart." };
-  return { title: "Zero is a lesson too", body: "Every intuition tested here was wrong today. That is exactly why EdgeLab tests instead of trusting." };
+export function verdictForScore(score: number): {
+  title: string;
+  body: string;
+} {
+  if (score === QUIZ_SIZE)
+    return {
+      title: "Five for five",
+      body: "Brilliant, that is rare. Now ask the same questions of your own strategies.",
+    };
+  if (score >= 3)
+    return {
+      title: "Better than most",
+      body: "Nice work. Most people land on two or three. Have a look at the misses, that is where the useful lessons are.",
+    };
+  if (score >= 1)
+    return {
+      title: "A fair start",
+      body: "These are hard on purpose. Charts hide most of what matters, so a couple right is a good start.",
+    };
+  return {
+    title: "A tough set today",
+    body: "Every miss has a reason underneath it, and that is the whole point of testing an idea before trusting it. Tomorrow is a fresh five.",
+  };
 }
