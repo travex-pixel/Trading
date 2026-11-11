@@ -49,6 +49,28 @@ The same study on the demo-v3 process (30 independent paths of STW, CBA and BHP)
 2. The useful thing to show next to any winner is whether picking winners works: what last period's winner did next, and how a set of coin-flip strategies with the same exposure would have ranked.
 3. Buy and hold is the bar. On these instruments, these six rules mostly failed to clear it.
 
+## The luck test on the Command Centre
+
+Next to the winner, the Command Centre now asks whether luck could have produced it. Each of the six strategies is reduced to its exposure path, meaning how much of the account was in the market at each close. All six paths are rotated together to another start date (a circular shift). That keeps each strategy's time in the market, its number of trades and its holding periods, and the correlations between the six, but breaks the link between timing and price moves. Every distinct rotation is tried. The p-value is the share of rotations whose best strategy does at least as well as the real winner. This is the same principle as White's Reality Check and Hansen's SPA test, which resample all strategies with the same indices.
+
+Validation (`src/lib/quant/luck.test.ts`, `research/luck-distribution.research.ts`):
+
+| Check | Result |
+|---|---|
+| Calibration on 60 pure random walks | p below 0.10 in fewer than 22%, mean p between 0.35 and 0.65 (asserted) |
+| p-values on 120 demo-v3 windows | mean 0.54 (0.49 to 0.59), uniform within noise |
+| p-values on 30 real windows (4.5 years each) | mean 0.58 (0.49 to 0.67), uniform within noise |
+| Power on a planted, harvestable trend edge, about 2 years of bars | 0 of 15 detected |
+| Same edge, about 5 years | 2 of 15 |
+| Same edge, about 11 years | 14 of 15 |
+
+Two findings shaped the screen:
+
+- **An earlier version rotated each strategy independently.** That made the luck-only strategies independent while the real ones are strongly correlated, which inflated the luck-only best and biased the test towards "luck explains it". On real and demo data, p-values averaged 0.60 to 0.66 instead of 0.5. Rotating all strategies together fixed it.
+- **Two years of daily data cannot separate a real trend edge from lucky timing,** even when the edge is planted by construction. The Command Centre therefore judges the winner on all history before the paper-trading holdout: about 4.3 years on demo data and up to 9.5 years with a 10-year EODHD history.
+
+The screen also shows the deflated Sharpe ratio (Bailey and López de Prado, 2014, reproduced to their published 0.9004 in `stats.test.ts`). The walk-forward verdict is capped by the luck test, so the screen never calls a result "promising" while luck could explain it.
+
 ## Limitations
 
 - Six strategies with library default parameters. Tuning parameters in sample, which is what users do in the Lab, adds another layer of selection, so persistence would be expected to be weaker still.

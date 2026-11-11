@@ -207,12 +207,22 @@ input[type="radio"] {
 
 /* The one authored motion: a question or result settling into place. Visible by default; motion only enhances. */
 /* A screen that fits the viewport exactly: below the phone top bar and above the tab bar, inside the desktop padding. */
+/*
+  A screen that fits the browser viewport exactly. On phones: below the 48px top
+  bar and 16px of padding, above the 64px tab bar, the safe area and a 12px gap.
+  Measured against in-browser viewports (an iPhone 14 in Safari is 664px tall,
+  an iPhone SE 548px), not screen sizes.
+*/
 @utility fit-screen {
-  height: calc(100dvh - 11rem);
+  height: calc(100dvh - 8.75rem - env(safe-area-inset-bottom));
   @media (min-width: 1024px) {
     height: calc(100dvh - 4.5rem);
   }
 }
+
+/* Short viewports drop secondary lines so fitted screens never scroll. */
+@custom-variant short (@media (max-height: 720px));
+@custom-variant tiny (@media (max-height: 600px));
 
 @keyframes quiz-in {
   from {

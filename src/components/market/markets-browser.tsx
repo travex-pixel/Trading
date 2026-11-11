@@ -115,9 +115,17 @@ export function MarketsBrowser({
     };
   }, [ids]);
   // A watch table can mix sources when live data fails for some instruments. Each row then carries its own label.
-  const syntheticAssets = useMemo(() => new Set((series ?? []).filter((x) => x.source.isSynthetic).map((x) => x.asset)), [series]);
-  const mixedSources = syntheticAssets.size > 0 && syntheticAssets.size < (series?.length ?? 0);
-  const realSource = (series ?? []).find((x) => !x.source.isSynthetic)?.source ?? null;
+  const syntheticAssets = useMemo(
+    () =>
+      new Set(
+        (series ?? []).filter((x) => x.source.isSynthetic).map((x) => x.asset),
+      ),
+    [series],
+  );
+  const mixedSources =
+    syntheticAssets.size > 0 && syntheticAssets.size < (series?.length ?? 0);
+  const realSource =
+    (series ?? []).find((x) => !x.source.isSynthetic)?.source ?? null;
   const quoteById = useMemo(
     () => new Map((quotes?.quotes ?? []).map((q) => [q.instrumentId, q])),
     [quotes],
@@ -137,11 +145,13 @@ export function MarketsBrowser({
     dataStatus?.markets.find((m) => m.id === market)?.data ?? null;
 
   return (
-    <div className="fit-screen flex min-h-[520px] flex-col gap-3">
+    <div className="fit-screen flex min-h-0 flex-col gap-3 short:gap-2">
       <PageHeader
-        className="mb-0"
+        className="mb-0 short:flex-row short:items-center short:justify-between"
         title="Markets"
-        description={`${spec.name}. ${spec.description}`}
+        description={
+          <span className="short:hidden lg:short:inline">{`${spec.name}. ${spec.description}`}</span>
+        }
         actions={
           <MarketSelector
             value={market}
@@ -192,12 +202,12 @@ export function MarketsBrowser({
               <span className="num text-xs text-ink-3">UTC, no sessions</span>
             )}
             {status?.state === "closed" && status.opensAt ? (
-              <span className="num text-xs text-ink-3">
+              <span className="num text-xs text-ink-3 short:hidden lg:short:inline">
                 Next open {fmtDateTime(status.opensAt)}
               </span>
             ) : null}
             {status?.state === "open" ? (
-              <span className="num text-xs text-ink-3">
+              <span className="num text-xs text-ink-3 short:hidden lg:short:inline">
                 Closes {fmtDateTime(status.closesAt)}
               </span>
             ) : null}
@@ -301,7 +311,12 @@ export function MarketsBrowser({
                               <Badge tone="muted">ETF</Badge>
                             ) : null}
                             {mixedSources && syntheticAssets.has(r.asset) ? (
-                              <Badge tone="warn" title="Live data was unavailable for this instrument. This row shows the synthetic demo dataset.">DEMO</Badge>
+                              <Badge
+                                tone="warn"
+                                title="Live data was unavailable for this instrument. This row shows the synthetic demo dataset."
+                              >
+                                DEMO
+                              </Badge>
                             ) : null}
                           </span>
                           <span className="truncate text-xs text-ink-2">
@@ -384,11 +399,14 @@ export function MarketsBrowser({
         )}
         {mixedSources ? (
           <p className="border-t border-hairline px-4 py-2 text-2xs leading-4 text-warn">
-            Mixed sources. Rows marked DEMO use the synthetic dataset because live data was unavailable for them. The rest are {realSource?.label ?? "live data"}.
+            Mixed sources. Rows marked DEMO use the synthetic dataset because
+            live data was unavailable for them. The rest are{" "}
+            {realSource?.label ?? "live data"}.
           </p>
         ) : null}
         {series?.[0] ? (
           <ProvenancePlate
+            className="tiny:hidden"
             source={realSource ?? series[0].source}
             timeframe="1d"
             currency={spec.currency}

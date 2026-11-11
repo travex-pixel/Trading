@@ -83,7 +83,14 @@ function CurvesFigure({
   const { ref, width, height } = useBox(fill);
   const multi = figure.series.length > 1;
   // Leave room at the bottom for the legend that appears on reveal, so the chart never resizes under the player.
-  const margin = { top: 14, right: 44, bottom: multi ? 30 : 12, left: 8 };
+  // On very short screens there is no room for the legend under the curves. The review screen names them.
+  const roomForLegend = height >= 120;
+  const margin = {
+    top: 14,
+    right: 44,
+    bottom: multi && roomForLegend ? 30 : 12,
+    left: 8,
+  };
   const plotW = width - margin.left - margin.right;
   const plotH = height - margin.top - margin.bottom;
   let min = Infinity;
@@ -194,12 +201,12 @@ function CurvesFigure({
           </>
         ) : null}
       </svg>
-      {figure.hideScale ? (
+      {figure.hideScale && roomForLegend ? (
         <div className="pointer-events-none absolute right-2 top-0 font-mono text-[10px] uppercase tracking-wider text-ink-4">
           scale hidden
         </div>
       ) : null}
-      {multi ? (
+      {multi && roomForLegend ? (
         <ul
           className={cn(
             "pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-ink-2 transition-opacity duration-300",

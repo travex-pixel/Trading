@@ -297,3 +297,57 @@ test("link previews carry an absolute, crisp Open Graph image", async ({
   expect(card.status()).toBe(200);
   expect((await card.body()).length).toBeLessThan(300_000);
 });
+
+test("home names the best strategy with its evidence and opens the exact test", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("edgelab:v1:onboarded", "1");
+    } catch {}
+  });
+  await page.goto("/");
+  // Every winner comes with the luck test, in plain English.
+  await expect(
+    page.getByText(/Shifting the same trades to other dates/).first(),
+  ).toBeVisible({ timeout: 30_000 });
+  await expect(
+    page.getByText(/Beats luck|Borderline|Luck could explain it/).first(),
+  ).toBeVisible();
+  // Synthetic prices are never presented as the real company's.
+  await expect(
+    page
+      .locator("main")
+      .getByText(/On demo prices|on demo \w+ prices/)
+      .locator("visible=true")
+      .first(),
+  ).toBeVisible();
+  // The primary action opens the Lab on exactly the strategy and period shown.
+  const href = await page
+    .locator("main a", { hasText: /Test this on/ })
+    .first()
+    .getAttribute("href");
+  expect(href).toMatch(/^\/lab\/build\?s=/);
+  // Fully in view, not clipped by its panel or the viewport edge.
+  await expect(
+    page.locator("main a", { hasText: /Test this on/ }).first(),
+  ).toBeInViewport({ ratio: 1 });
+  await page
+    .locator("main a", { hasText: /Test this on/ })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/lab\/build\?s=/);
+  await expect(page.getByText(/next open/).first()).toBeVisible({
+    timeout: 30_000,
+  });
+  // The page never scrolls on Home.
+  await page.goto("/");
+  await expect(page.getByText(/Shifting the same trades/).first()).toBeVisible({
+    timeout: 30_000,
+  });
+  const [doc, vp] = await page.evaluate(() => [
+    document.documentElement.scrollHeight,
+    window.innerHeight,
+  ]);
+  expect(doc).toBeLessThanOrEqual(vp);
+});

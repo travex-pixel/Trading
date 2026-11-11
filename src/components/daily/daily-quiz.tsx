@@ -224,7 +224,7 @@ export function DailyQuizGame({ autoStart = false }: { autoStart?: boolean }) {
   // scroll. Phone: below the top bar and above the tab bar. Desktop: capped
   // so the card does not stretch into a wall of space.
   return (
-    <div className="fit-screen flex max-h-[760px] min-h-[520px] flex-col gap-3">
+    <div className="fit-screen flex max-h-[760px] min-h-0 flex-col gap-3 short:gap-2">
       <Progress
         total={quiz.questions.length}
         index={index}
@@ -412,7 +412,7 @@ function QuestionCard({
         </h2>
 
         {/* Figure fills whatever height is left */}
-        <div className="relative mt-3 min-h-[120px] flex-1">
+        <div className="relative mt-3 min-h-[120px] flex-1 short:mt-2 short:min-h-[64px]">
           <QuizFigureView
             figure={q.figure}
             revealed={revealed}
@@ -444,7 +444,7 @@ function QuestionCard({
         </div>
 
         {/* Lesson slot: reserved before the answer so nothing jumps */}
-        <div className="mt-3 flex min-h-[7.5rem] flex-col justify-end border-t border-hairline pt-3">
+        <div className="mt-3 flex min-h-[7.5rem] flex-col justify-end border-t border-hairline pt-3 short:mt-2 short:min-h-[6.25rem] short:pt-2">
           {revealed ? (
             <div className="quiz-enter flex flex-col gap-3">
               <p className="text-sm leading-5 text-ink">{q.lesson}</p>
@@ -503,7 +503,7 @@ function Choice({
       onClick={onPick}
       aria-pressed={chosen}
       className={cn(
-        "flex min-h-12 items-center justify-between gap-2 rounded-[var(--radius-md)] border px-3.5 py-2 text-left text-sm transition-[background-color,border-color,transform] duration-150 active:scale-[0.98]",
+        "flex min-h-12 items-center justify-between gap-2 rounded-[var(--radius-md)] border px-3.5 py-2 text-left text-sm tiny:gap-1 tiny:px-2.5 transition-[background-color,border-color,transform] duration-150 active:scale-[0.98]",
         state === "idle" &&
           "border-border bg-raised text-ink hover:border-border-strong hover:bg-hover active:bg-hover",
         state === "correct" && "border-up/60 bg-up-dim text-ink",

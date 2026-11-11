@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { demoSeries } from "@/lib/market/demo-data";
-import { bestStrategyReport, rankLibrary, rankableKinds } from "./best";
+import { analysisPeriod, bestStrategyReport, rankLibrary, rankableKinds } from "./best";
 
 const cba = demoSeries("ASX:CBA", "1d");
 
@@ -14,7 +14,7 @@ describe("best strategy report", () => {
   });
 
   it("orders by return per unit of risk and numbers the ranks", () => {
-    const { ranked } = rankLibrary(cba);
+    const { ranked } = rankLibrary(cba, analysisPeriod(cba)!);
     expect(ranked.length).toBeGreaterThanOrEqual(5);
     ranked.forEach((r, i) => expect(r.rank).toBe(i + 1));
     for (let i = 1; i < ranked.length; i++) {
@@ -30,17 +30,37 @@ describe("best strategy report", () => {
     const r = report!;
     expect(r.best.rank).toBe(1);
     expect(r.meaning.headline).toContain(r.best.name);
-    expect(r.meaning.headline).toContain("CBA");
+    // Synthetic prices are never described as facts about the real company.
+    expect(r.meaning.headline).toContain("demo CBA prices");
+    // The period is stated, not "the last 24 months".
+    expect(r.meaning.headline).toMatch(/^From \d{2} \w{3} \d{4} to \d{2} \w{3} \d{4}/);
     expect(r.meaning.points.length).toBeGreaterThanOrEqual(4);
     expect(r.meaning.caveat.length).toBeGreaterThan(40);
     expect(["unproven", "fragile", "promising", "robust"]).toContain(r.assessment.verdict);
-    // The headline never promises the future.
-    expect(r.meaning.headline).toMatch(/would have/);
+    // Every winner comes with the luck test, the deflated Sharpe ratio and the cross-market evidence.
+    expect(r.luck).not.toBeNull();
+    expect(r.luck!.pValue).toBeGreaterThan(0);
+    expect(r.luck!.pValue).toBeLessThanOrEqual(1);
+    expect(r.meaning.luckLine).toMatch(/luck|Borderline/i);
+    expect(r.deflatedSharpe).not.toBeNull();
+    expect(r.meaning.researchLine).toContain("140 tests");
+    expect(r.pickThenTrade).not.toBeNull();
+    // The overall verdict never says "promising" while the luck test says luck could explain it.
+    if (r.luckVerdict === "luck_explains") expect(r.assessment.verdict).toBe("unproven");
+    expect(r.meaning.short).toMatch(/^On demo prices, A\$10,000 became/);
   });
 
   it("is quick enough to run on every instrument switch", () => {
+    const stw = demoSeries("ASX:STW", "1d");
     const t0 = performance.now();
-    bestStrategyReport(cba);
-    expect(performance.now() - t0).toBeLessThan(2_000);
+    bestStrategyReport(stw);
+    const ms = performance.now() - t0;
+    console.log(`best strategy report on STW: ${ms.toFixed(0)} ms`);
+    expect(ms).toBeLessThan(2_000);
+  });
+
+  it("uses all history before the paper-trading holdout, not two years", () => {
+    const p = analysisPeriod(cba)!;
+    expect((p.end - p.start) / (365.25 * 86_400_000)).toBeGreaterThan(4);
   });
 });

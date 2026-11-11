@@ -63,6 +63,7 @@ import {
   selectPortfolios,
   useRepository,
 } from "@/lib/store/use-store";
+import { encodeSnapshot } from "@/lib/store/snapshot";
 import { cn } from "@/lib/utils";
 import { GuideSheet, useOnboarding } from "./onboarding";
 import { useNow } from "./use-now";
@@ -114,7 +115,7 @@ export function CommandCentre() {
   const firstVisit = onboarding.dismissed === false;
 
   return (
-    <div className="fit-screen flex min-h-[560px] flex-col gap-3 lg:gap-4">
+    <div className="fit-screen flex min-h-0 flex-col gap-3 short:gap-2 lg:gap-4">
       <TopBar onGuide={() => setSheet("guide")} firstVisit={firstVisit} />
 
       {error ? (
@@ -136,6 +137,7 @@ export function CommandCentre() {
               : null
           }
           onRanking={() => setSheet("ranking")}
+          onGuide={() => setSheet("guide")}
         />
 
         {/* Phone: three tiles in a row. Desktop: a column with the ranking in full. */}
@@ -203,7 +205,8 @@ function TopBar({
         ? `ASX closed${status.opensAt ? ` · opens ${new Date(status.opensAt).toLocaleString("en-AU", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Australia/Sydney" })}` : ""}`
         : "ASX open";
   return (
-    <div className="flex items-center justify-between gap-3">
+    // On the shortest phones the title row gives way to the hero. The active tab already says where you are.
+    <div className="flex items-center justify-between gap-3 tiny:hidden">
       <div className="flex min-w-0 items-baseline gap-3">
         <h1 className="text-lg font-semibold tracking-tight text-ink lg:text-xl">
           Command Centre
@@ -274,6 +277,7 @@ function BestStrategyHero({
   lastClose,
   prevClose,
   onRanking,
+  onGuide,
 }: {
   report: BestStrategyReport | null;
   loading: boolean;
@@ -282,6 +286,7 @@ function BestStrategyHero({
   lastClose: { time: number; close: number } | null;
   prevClose: { time: number; close: number } | null;
   onRanking: () => void;
+  onGuide: () => void;
 }) {
   const options = HOME_WATCHLIST.map((id) => ({
     value: id,
@@ -296,19 +301,27 @@ function BestStrategyHero({
   return (
     <Panel className="flex min-h-0 flex-col overflow-hidden">
       {/* Instrument strip */}
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-hairline px-4 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-hairline px-4 py-2.5 tiny:py-1.5">
+        <button
+          type="button"
+          onClick={onGuide}
+          aria-label="How EdgeLab works"
+          className="hidden size-9 items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink tiny:inline-flex"
+        >
+          <Question className="size-5" aria-hidden />
+        </button>
         <div className="flex min-w-0 items-baseline gap-2">
-          <span className="whitespace-nowrap font-mono text-2xs uppercase tracking-wider text-ink-4">
+          <span className="whitespace-nowrap font-mono text-2xs uppercase tracking-wider text-ink-4 tiny:hidden">
             Best on
           </span>
-          <span className="truncate text-sm font-semibold text-ink sm:hidden">
+          <span className="truncate text-sm font-semibold text-ink tiny:hidden sm:hidden">
             {inst?.symbol ?? asset}
           </span>
           <span className="hidden truncate text-sm font-semibold text-ink sm:inline">
             {inst?.name ?? asset}
           </span>
           {lastClose && report ? (
-            <span className="num whitespace-nowrap text-xs text-ink-3">
+            <span className="num whitespace-nowrap text-xs text-ink-3 tiny:hidden">
               {fmtPrice(lastClose.close, report.currency)}{" "}
               <span className={signClass(change)}>
                 {fmtPct(change, { sign: true })}
@@ -347,25 +360,25 @@ function HeroBody({
   report: BestStrategyReport;
   onRanking: () => void;
 }) {
-  const { best, buyAndHold, meaning, assessment, symbol, currency } = report;
+  const { best, buyAndHold, meaning, symbol, currency } = report;
   const m = best.result.metrics;
   const b = buyAndHold.metrics;
-  const testHref = `/lab/build?kind=${best.kind}&asset=${encodeURIComponent(report.asset)}`;
+  const testHref = labHref(report);
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pt-3 pb-4 sm:px-5">
-      {/* Name and verdict */}
+      {/* Name, and whether luck could explain it */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <h2 className="text-[22px] font-semibold leading-7 tracking-tight text-ink sm:text-2xl">
           {best.name}
         </h2>
-        <VerdictBadge verdict={assessment.verdict} size="sm" />
+        <LuckChip report={report} className="tiny:hidden" />
       </div>
-      <p className="mt-1 line-clamp-1 max-w-[60ch] text-sm leading-5 text-ink-2 text-pretty sm:line-clamp-none">
+      <p className="mt-1 line-clamp-1 max-w-[60ch] text-sm leading-5 text-ink-2 text-pretty short:hidden sm:line-clamp-none lg:short:block">
         {best.summary}
       </p>
 
       {/* Figures */}
-      <div className="mt-3 grid grid-cols-3 gap-3">
+      <div className="mt-3 grid grid-cols-3 gap-3 short:mt-2">
         <Figure
           label="Return"
           value={fmtPct(m.totalReturnPct, { sign: true })}
@@ -388,7 +401,7 @@ function HeroBody({
       </div>
 
       {/* Chart fills whatever is left */}
-      <div className="relative mt-2 min-h-[72px] flex-1">
+      <div className="relative mt-2 min-h-[72px] flex-1 short:min-h-[44px] tiny:hidden">
         <div className="absolute inset-0">
           <EquityChart
             series={[
@@ -415,17 +428,20 @@ function HeroBody({
       </div>
 
       {/* Meaning */}
-      <div className="mt-2 border-t border-hairline pt-3">
-        <p className="line-clamp-2 text-sm leading-5 text-ink text-pretty sm:line-clamp-none">
+      <div className="mt-2 border-t border-hairline pt-3 short:pt-2 tiny:mt-auto">
+        <p className="text-sm leading-5 text-ink text-pretty sm:hidden">
+          {meaning.short}
+        </p>
+        <p className="hidden text-sm leading-5 text-ink text-pretty sm:block">
           {meaning.headline}
         </p>
-        <p className="mt-1 line-clamp-1 text-xs leading-4 text-ink-3 text-pretty sm:line-clamp-none">
-          {meaning.caveat}
+        <p className="mt-1 line-clamp-2 text-xs leading-4 text-ink-2 text-pretty short:line-clamp-1 sm:line-clamp-none">
+          {meaning.luckLine}
         </p>
       </div>
 
       {/* Actions */}
-      <div className="mt-3 flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="mt-3 flex shrink-0 flex-col gap-2 short:mt-2 sm:flex-row sm:items-center">
         <Button
           variant="primary"
           size="lg"
@@ -472,8 +488,8 @@ function Figure({
         className={cn(
           "mt-0.5 truncate leading-none",
           hero
-            ? "num-hero text-[26px] sm:text-3xl"
-            : "num text-[26px] sm:text-2xl",
+            ? "num-hero text-[26px] tiny:text-[22px] sm:text-3xl"
+            : "num text-[26px] tiny:text-[22px] sm:text-2xl",
           toneCls,
         )}
       >
@@ -530,12 +546,14 @@ function Tile({
         {value}
       </div>
       {sub ? (
-        <div className="mt-0.5 truncate text-2xs text-ink-3">{sub}</div>
+        <div className="mt-0.5 truncate text-2xs text-ink-3 short:hidden lg:short:block">
+          {sub}
+        </div>
       ) : null}
     </>
   );
   const cls = cn(
-    "flex min-h-[76px] flex-col justify-between rounded-[var(--radius-md)] border border-hairline bg-panel px-3 py-2.5 text-left transition-colors hover:border-border-strong hover:bg-hover active:scale-[0.99] lg:min-h-[84px] lg:px-4 lg:py-3",
+    "flex min-h-[76px] flex-col justify-between rounded-[var(--radius-md)] border border-hairline bg-panel px-3 py-2.5 text-left transition-colors hover:border-border-strong hover:bg-hover active:scale-[0.99] short:min-h-[58px] short:py-2 lg:min-h-[84px] lg:px-4 lg:py-3",
     className,
   );
   if (href) {
@@ -645,7 +663,9 @@ function RankingPanel({
             Ranking on {report?.symbol ?? "…"}
           </h2>
           <p className="mt-0.5 text-xs leading-4 text-ink-3">
-            Return per unit of risk, same bars, same costs.
+            {report
+              ? `Return per unit of risk, ${fmtDate(report.period.start)} – ${fmtDate(report.period.end)}, same costs.`
+              : "Return per unit of risk, same bars, same costs."}
           </p>
         </div>
         <Button size="sm" variant="ghost" onClick={onMore}>
@@ -774,9 +794,7 @@ function RankingSheet({
             className="w-full sm:w-auto"
             asChild
           >
-            <Link
-              href={`/lab/build?kind=${best.kind}&asset=${encodeURIComponent(report.asset)}`}
-            >
+            <Link href={labHref(report)}>
               Test this on {symbol}{" "}
               <ArrowRight className="size-4" weight="bold" aria-hidden />
             </Link>
@@ -809,6 +827,44 @@ function RankingSheet({
           />
           <p className="text-xs leading-4 text-ink-2">{meaning.caveat}</p>
         </div>
+      </section>
+
+      <section className="mt-5">
+        <h3 className="text-xs font-medium uppercase tracking-wider text-ink-4">
+          Skill or luck?
+        </h3>
+        <div className="mt-1.5 flex items-start gap-2.5">
+          <LuckChip report={report} className="mt-px shrink-0" />
+          <p className="text-sm leading-5 text-ink">{meaning.luckLine}</p>
+        </div>
+        <ul className="mt-2.5 space-y-2">
+          <li className="text-xs leading-4 text-ink-2">
+            The test keeps every strategy&apos;s time in the market, number of
+            trades and holding periods, moves them all together to other dates,
+            and asks how often the best of the {report.ranked.length} still does
+            as well. If it often does, the result is about how much time was
+            spent in the market, not about when.
+          </li>
+          {report.deflatedSharpe !== null ? (
+            <li className="text-xs leading-4 text-ink-2">
+              Corrected for picking the best of {report.ranked.length}, for the
+              length of the test and for fat tails, the chance its risk-adjusted
+              return is really above zero is{" "}
+              <span className="num text-ink">
+                {Math.round(report.deflatedSharpe * 100)}%
+              </span>{" "}
+              (deflated Sharpe ratio). Above 95% is the usual bar.
+            </li>
+          ) : null}
+          {meaning.pickedLine ? (
+            <li className="text-xs leading-4 text-ink-2">
+              {meaning.pickedLine}
+            </li>
+          ) : null}
+          <li className="text-xs leading-4 text-ink-2">
+            {meaning.researchLine}
+          </li>
+        </ul>
       </section>
 
       <section className="mt-5">
@@ -919,6 +975,58 @@ function RankingSheet({
         <SimulatedBadge />
       </div>
     </Dialog>
+  );
+}
+
+/** Open the Lab on exactly the strategy, instrument and period the screen describes. */
+function labHref(report: BestStrategyReport): string {
+  try {
+    const code = encodeSnapshot({
+      v: 1,
+      config: report.best.config,
+      start: report.period.start,
+      end: report.period.end,
+      data: report.source.version,
+      title: `${report.best.name} on ${report.symbol}`,
+    });
+    return `/lab/build?s=${code}`;
+  } catch {
+    return `/lab/build?kind=${report.best.kind}&asset=${encodeURIComponent(report.asset)}`;
+  }
+}
+
+const LUCK_CHIP: Record<
+  BestStrategyReport["luckVerdict"],
+  { label: string; tone: "up" | "warn" | "muted" }
+> = {
+  beats_luck: { label: "Beats luck", tone: "up" },
+  borderline: { label: "Borderline", tone: "warn" },
+  luck_explains: { label: "Luck could explain it", tone: "muted" },
+};
+
+function LuckChip({
+  report,
+  className,
+}: {
+  report: BestStrategyReport;
+  className?: string;
+}) {
+  const c = LUCK_CHIP[report.luckVerdict];
+  const p = report.luck
+    ? Math.max(1, Math.round(report.luck.pValue * 100))
+    : null;
+  return (
+    <Badge
+      tone={c.tone}
+      className={className}
+      title={
+        p !== null
+          ? `Shifting the same trades to other dates did as well ${p}% of the time.`
+          : undefined
+      }
+    >
+      {c.label}
+    </Badge>
   );
 }
 

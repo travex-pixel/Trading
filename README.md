@@ -79,7 +79,16 @@ No secret is ever read in client code.
 - `src/lib/market` — instruments, calendars, demo data, providers.
 - `src/lib/strategies` — the ten strategy definitions as validated data.
 - `src/lib/daily` — Today's Five.
-- `src/app` — routes: `/` Command Centre (best strategy for an instrument, explained, with the ranking behind a sheet), `/markets`, `/lab` Strategies, `/arena`, `/paper` Portfolio, `/replay`, `/journal`, `/daily`, `/s/[code]` shared experiments.
+- `src/app` — routes: `/` Command Centre (the best of six strategies on an instrument, with a luck test, the deflated Sharpe ratio and whether picking past winners has worked), `/markets`, `/lab` Strategies, `/arena`, `/paper` Portfolio, `/replay`, `/journal`, `/daily`, `/s/[code]` shared experiments.
+
+## Research
+
+`docs/research/` holds studies run on the engine with real EODHD data (kept out of the repository) and the code to reproduce them in `research/`:
+
+- `picking-the-best.md`: on 140 real-market windows since 1992, the strategy with the best risk-adjusted score over two years did no better than a random pick the following year, and beat simply holding 29% of the time. Also documents the Command Centre's luck test, its calibration and its power.
+- `demo-data-calibration.md`: how the demo dataset was recalibrated against real markets, with criteria written before tuning and the two it narrowly misses.
+
+The engine is cross-checked by `research/reference_engine.py`, an independent Python implementation that reproduces it exactly on 36 years of AAPL and MSFT data.
 
 ## Honesty notes
 

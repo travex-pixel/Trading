@@ -67,7 +67,9 @@ Plain English first ("the biggest fall from a previous high"), then the term. Co
 
 ## Screens that fit
 
-Home, Markets, Today's Five and the desktop Lab are sized to the viewport with the `fit-screen` utility (below the phone top bar and above the tab bar, inside the desktop padding). Long lists scroll inside their panel, never the page. Anything deeper than the first screen opens in a sheet: the full ranking and what it means, the guide, data connections, save and paper-trade forms.
+Home, Markets, Today's Five and the desktop Lab are sized to the browser viewport with the `fit-screen` utility (below the phone top bar and above the tab bar, inside the desktop padding). Long lists scroll inside their panel, never the page. Anything deeper than the first screen opens in a sheet: the full ranking and what it means, the guide, data connections, save and paper-trade forms.
+
+Fit is measured against in-browser viewports, not screen sizes: an iPhone 14 in Safari is 664px tall and an iPhone SE 548px. Two height variants keep fitted screens whole. `short:` (720px and below) drops secondary lines, such as the strategy summary, tile sub-lines and the Markets description. `tiny:` (600px and below) also drops the Home chart, the luck chip and the page title row, whose help button moves into the hero strip. The end-to-end suite asserts that Home never scrolls and that its primary button is fully in view, unclipped, on the iPhone 14 profile.
 
 ## Navigation
 
