@@ -100,38 +100,39 @@ export function computePaperState(portfolio: PaperPortfolio, series: CandleSerie
   const firstIdx = reference.candles.findIndex((c) => c.time >= portfolio.startedAt);
   if (firstIdx === -1 || reference.candles.length - firstIdx < 2) return empty;
 
-  const result = runBacktest(portfolio.config, visible, { start: portfolio.startedAt });
+  // A running portfolio keeps its positions open at the latest bar. A stopped
+  // one has been closed out, so the engine liquidates it like any backtest.
+  const running = portfolio.status === "running";
+  const result = runBacktest(portfolio.config, visible, { start: portfolio.startedAt, liquidateAtEnd: !running });
   const lastIdx = reference.candles.length - 1;
   const lastBar = reference.candles[lastIdx];
 
-  // The engine closes open positions at the final bar as "end_of_data". For a
-  // running paper portfolio those are still OPEN, so split them back out.
-  const open = result.trades.filter((t) => t.exitReason === "end_of_data" && portfolio.status === "running");
-  const closed = result.trades.filter((t) => !(t.exitReason === "end_of_data" && portfolio.status === "running"));
-
-  const positions: PaperPositionView[] = open.map((t) => {
-    const mark = visible.find((s) => s.asset === t.asset)!.candles[lastIdx].close;
-    const unrealised = t.quantity * (mark - t.entryPrice) - (t.fees - t.fees / 2);
+  const closed = result.trades;
+  const positions: PaperPositionView[] = result.openPositions.map((p) => {
+    const mark = visible.find((x) => x.asset === p.asset)!.candles[lastIdx].close;
     return {
-      asset: t.asset,
-      quantity: t.quantity,
-      entryPrice: t.entryPrice,
-      entryTime: t.entryTime,
+      asset: p.asset,
+      quantity: p.quantity,
+      entryPrice: p.entryPrice,
+      entryTime: p.entryTime,
       markPrice: mark,
-      unrealisedPnl: unrealised,
-      unrealisedPct: t.entryPrice > 0 ? (mark / t.entryPrice - 1) * 100 : 0,
-      stopPrice: portfolio.config.risk.stopLossPct !== null ? t.entryPrice * (1 - portfolio.config.risk.stopLossPct) : null,
-      takeProfitPrice: portfolio.config.risk.takeProfitPct !== null ? t.entryPrice * (1 + portfolio.config.risk.takeProfitPct) : null,
-      entryReason: t.entryReason,
+      // Net of the brokerage already paid to open it, so realised plus unrealised equals the change in the account.
+      unrealisedPnl: p.quantity * (mark - p.entryPrice) - p.entryFees,
+      unrealisedPct: p.entryPrice > 0 ? (mark / p.entryPrice - 1) * 100 : 0,
+      // The stop the engine actually holds, including any trailing it has done.
+      stopPrice: p.stopPrice,
+      takeProfitPrice: p.takeProfitPrice,
+      entryReason: p.entryReason,
     };
   });
 
   const orders: PaperOrderView[] = [];
   for (const t of result.trades) {
-    orders.push({ time: t.entryTime, asset: t.asset, side: "buy", quantity: t.quantity, price: t.entryPrice, fee: t.fees / 2, reason: t.entryReason });
-    if (!(t.exitReason === "end_of_data" && portfolio.status === "running")) {
-      orders.push({ time: t.exitTime, asset: t.asset, side: "sell", quantity: t.quantity, price: t.exitPrice, fee: t.fees / 2, reason: t.exitReasonText });
-    }
+    orders.push({ time: t.entryTime, asset: t.asset, side: "buy", quantity: t.quantity, price: t.entryPrice, fee: t.entryFees, reason: t.entryReason });
+    orders.push({ time: t.exitTime, asset: t.asset, side: "sell", quantity: t.quantity, price: t.exitPrice, fee: t.fees - t.entryFees, reason: t.exitReasonText });
+  }
+  for (const p of result.openPositions) {
+    orders.push({ time: p.entryTime, asset: p.asset, side: "buy", quantity: p.quantity, price: p.entryPrice, fee: p.entryFees, reason: p.entryReason });
   }
   orders.sort((a, b) => a.time - b.time);
 

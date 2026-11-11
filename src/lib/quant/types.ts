@@ -81,6 +81,8 @@ export interface Trade {
   exitReason: TradeExitReason;
   /** Fees paid on entry plus exit, in quote currency. */
   fees: number;
+  /** The entry part of `fees`. The exit part is `fees - entryFees`. */
+  entryFees: number;
   /** Realised profit after fees, in quote currency. */
   pnl: number;
   /** pnl divided by entry notional. */
@@ -156,6 +158,24 @@ export interface BacktestResult {
   indicators: Record<string, (number | null)[]>;
   metrics: PerformanceMetrics;
   warnings: ResultWarning[];
+  /**
+   * Positions still held at the final bar. Empty unless the run was asked to
+   * keep positions open (paper trading); research runs close everything.
+   */
+  openPositions: OpenPositionSnapshot[];
+}
+
+/** A position exactly as the engine holds it, including any stop it has trailed. */
+export interface OpenPositionSnapshot {
+  asset: AssetId;
+  quantity: number;
+  entryIndex: number;
+  entryTime: number;
+  entryPrice: number;
+  entryFees: number;
+  entryReason: string;
+  stopPrice: number | null;
+  takeProfitPrice: number | null;
 }
 
 export interface ResultWarning {

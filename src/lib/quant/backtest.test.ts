@@ -43,12 +43,12 @@ describe("runBacktest: buy and hold", () => {
   it("charges fees and slippage on entry and exit", () => {
     const s = series([100, 100, 100, 100]);
     const r = runBacktest(cfg({ params: { kind: "buy_and_hold" }, costs: { feeBps: 100, slippageBps: 100, feeFixed: 0 } }), [s]);
-    // Buy fill 101, notional = cash / 1.01 ; fee 1% of notional. Exit at 100 close, fee 1%.
+    // Buy fill 101, notional = cash / 1.01, fee 1% of notional. Exit at the 100 close less 1% slippage, fee 1%.
     const t = r.trades[0];
     expect(t.entryPrice).toBeCloseTo(101, 8);
     const notional = 1000 / 1.01;
     expect(t.quantity).toBeCloseTo(notional / 101, 8);
-    const exitGross = t.quantity * 100;
+    const exitGross = t.quantity * 100 * 0.99;
     const expectedPnl = exitGross * 0.99 - notional - notional * 0.01;
     expect(t.pnl).toBeCloseTo(expectedPnl, 8);
     expect(r.metrics.totalReturnPct).toBeLessThan(0);
@@ -120,8 +120,9 @@ describe("runBacktest: flat brokerage", () => {
     expect(t.quantity * 100).toBeCloseTo(990, 6);
     expect(t.fees).toBeCloseTo(20, 8);
     expect(t.pnl).toBeCloseTo(-20, 6);
-    // Equity is marked at the last close before the end-of-data liquidation fee, by design.
-    expect(r.metrics.finalEquity).toBeCloseTo(990, 6);
+    // The end-of-period exit pays its brokerage too, so the account ends with 980 in cash.
+    expect(r.metrics.finalEquity).toBeCloseTo(980, 6);
+    expect(r.equity[r.equity.length - 1].cash).toBeCloseTo(980, 6);
     for (const p of r.equity) expect(p.cash).toBeGreaterThanOrEqual(-1e-9);
   });
 });
@@ -184,5 +185,21 @@ describe("runBacktest: strategies and edge cases", () => {
     expect(r.trades.some((t) => t.asset === "CRYPTO:ETH")).toBe(true);
     expect(r.trades.some((t) => t.asset === "CRYPTO:BTC")).toBe(true);
     for (const p of r.equity) expect(p.exposure).toBeLessThanOrEqual(1.0000001);
+  });
+});
+
+describe("runBacktest: strategy stops", () => {
+  it("arms a stop sent with the entry signal from the entry bar onwards", () => {
+    // Flat, then a rise that puts close above a short average, then a collapse on the bar after entry.
+    const closes = [...Array.from({ length: 30 }, () => 100), 104, 50, 50];
+    const opens = closes.map((c, i) => (i === 0 ? c : closes[i - 1]));
+    opens[31] = 104; // entry fills at this open
+    const s = series(closes, opens);
+    const r = runBacktest(cfg({ params: { kind: "trend_following", maPeriod: 10, atrPeriod: 5, atrMultiple: 3 } }), [s]);
+    const t = r.trades[0];
+    expect(t.entryIndex).toBe(31);
+    // Without the fix the position had no stop on its entry bar and rode the fall to the end.
+    expect(t.exitReason).toBe("stop_loss");
+    expect(t.exitIndex).toBe(31);
   });
 });

@@ -57,6 +57,7 @@ describe("computeMetrics", () => {
     exitPrice: 100 + pnl,
     exitReason: "signal",
     fees: 0.1,
+    entryFees: 0.05,
     pnl,
     returnPct,
     holdingBars: 1,

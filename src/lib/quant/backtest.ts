@@ -35,6 +35,7 @@ import type {
   DataSource,
   EquityPoint,
   OpenPosition,
+  OpenPositionSnapshot,
   ResultWarning,
   SignalRecord,
   Trade,
@@ -48,11 +49,19 @@ export interface BacktestOptions {
   end?: number;
   /** Override the strategy name shown on results. */
   label?: string;
+  /**
+   * Close every open position at the final bar's close, paying slippage and
+   * fees like any other exit, so total return is what the account would hold
+   * in cash. On by default. Paper trading turns it off to keep positions open.
+   */
+  liquidateAtEnd?: boolean;
 }
 
 interface PendingOrder {
   asset: AssetId;
   side: "buy" | "sell";
+  /** A protective stop the strategy set with the entry signal, armed when the buy fills. */
+  initialStop?: number;
   /** For buys: target notional in quote currency. For sells: full exit. */
   notional: number;
   reason: string;
@@ -195,6 +204,7 @@ export function runBacktest(config: StrategyConfig, series: CandleSeries[], opti
       exitPrice: fillPrice,
       exitReason: reason,
       fees: pos.entryFees + fee,
+      entryFees: pos.entryFees,
       pnl,
       returnPct: entryNotional > 0 ? pnl / entryNotional : 0,
       holdingBars: index - pos.entryIndex,
@@ -254,7 +264,10 @@ export function runBacktest(config: StrategyConfig, series: CandleSeries[], opti
         const quantity = notional / fill;
         const fee = notional * feeRate + feeFixed;
         cash -= notional + fee;
-        const stop = config.risk.stopLossPct !== null ? fill * (1 - config.risk.stopLossPct) : null;
+        // Arm the tighter of the configured percentage stop and the strategy's own initial stop, from the entry bar on.
+        const pctStop = config.risk.stopLossPct !== null ? fill * (1 - config.risk.stopLossPct) : null;
+        const stratStop = order.initialStop !== undefined && order.initialStop > 0 ? order.initialStop : null;
+        const stop = pctStop === null ? stratStop : stratStop === null ? pctStop : Math.max(pctStop, stratStop);
         const tp = config.risk.takeProfitPct !== null ? fill * (1 + config.risk.takeProfitPct) : null;
         positions[order.asset] = {
           asset: order.asset,
@@ -318,7 +331,9 @@ export function runBacktest(config: StrategyConfig, series: CandleSeries[], opti
       targets[asset] = t;
       const pos = positions[asset];
       if (t === 1 && !pos) {
-        pending.push({ asset, side: "buy", notional: targetNotional(asset, i, eq), reason: signal.note ?? "Strategy signal." });
+        // A stop sent with the entry signal cannot apply yet (nothing is held), so it travels with the order.
+        const initialStop = signal.stopUpdates?.[asset];
+        pending.push({ asset, side: "buy", notional: targetNotional(asset, i, eq), reason: signal.note ?? "Strategy signal.", ...(initialStop !== undefined ? { initialStop } : {}) });
       } else if (t === 0 && pos) {
         const isRotation = config.params.kind === "momentum_rotation";
         pending.push({ asset, side: "sell", notional: 0, reason: signal.note ?? "Strategy signal.", exitReason: isRotation ? "rotation" : "signal" });
@@ -329,10 +344,39 @@ export function runBacktest(config: StrategyConfig, series: CandleSeries[], opti
     }
   }
 
-  // Close anything still open at the final close.
-  for (const asset of assets) {
-    if (positions[asset]) {
-      closePosition(asset, endIdx, aligned[asset][endIdx].close, "end_of_data", "Closed at the end of the data.");
+  // Close anything still open at the final close, with slippage and fees like
+  // any other exit, and restate the last equity point as the cash that leaves.
+  // Previously the last point was marked before this exit, so total return
+  // left out the final exit's costs while the trade list included them.
+  const openPositions: OpenPositionSnapshot[] = [];
+  if (options.liquidateAtEnd ?? true) {
+    let closedAny = false;
+    for (const asset of assets) {
+      if (positions[asset]) {
+        closePosition(asset, endIdx, aligned[asset][endIdx].close * (1 - slipRate), "end_of_data", "Closed at the end of the period.");
+        closedAny = true;
+      }
+    }
+    if (closedAny && equity.length > 0) {
+      const last = equity[equity.length - 1];
+      equity[equity.length - 1] = { ...last, equity: cash, cash, exposure: 0, drawdown: peak > 0 ? Math.max(0, (peak - cash) / peak) : 0 };
+    }
+  } else {
+    for (const asset of assets) {
+      const pos = positions[asset];
+      if (pos) {
+        openPositions.push({
+          asset,
+          quantity: pos.quantity,
+          entryIndex: pos.entryIndex,
+          entryTime: pos.entryTime,
+          entryPrice: pos.entryPrice,
+          entryFees: pos.entryFees,
+          entryReason: pos.entryReason,
+          stopPrice: pos.stopPrice,
+          takeProfitPrice: pos.takeProfitPrice,
+        });
+      }
     }
   }
 
@@ -361,6 +405,7 @@ export function runBacktest(config: StrategyConfig, series: CandleSeries[], opti
     indicators,
     metrics,
     warnings,
+    openPositions,
   };
 }
 
