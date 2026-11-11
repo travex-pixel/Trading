@@ -69,7 +69,7 @@ No secret is ever read in client code.
 
 1. Push this repository to GitHub.
 2. In Vercel, **Add New Project** → import the repository. Framework preset: Next.js. Node 20 or later.
-3. Add environment variables only if you want them (none are required). Set `EODHD_API_TOKEN` as a server environment variable to switch the ASX and US markets from demo data to real history.
+3. Add environment variables only if you want them (none are required). Set `EODHD_API_TOKEN` as a server environment variable to switch the ASX and US markets from demo data to real history. Redeploy after adding or changing it: the app shell is prerendered at build time and reads the setting then.
 4. Deploy. Security headers (CSP, frame-ancestors, nosniff, referrer and permissions policies) are set in `next.config.ts`.
 
 ## What is where

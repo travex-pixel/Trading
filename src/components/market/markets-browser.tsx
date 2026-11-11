@@ -34,6 +34,7 @@ import { CALENDARS, marketStatus, tzLabel } from "@/lib/market/calendar";
 import { useCandles } from "@/lib/market/client";
 import {
   DEFAULT_MARKET,
+  getInstrument,
   instrumentsFor,
   MARKET_ORDER,
   MARKETS,
@@ -113,6 +114,10 @@ export function MarketsBrowser({
       cancelled = true;
     };
   }, [ids]);
+  // A watch table can mix sources when live data fails for some instruments. Each row then carries its own label.
+  const syntheticAssets = useMemo(() => new Set((series ?? []).filter((x) => x.source.isSynthetic).map((x) => x.asset)), [series]);
+  const mixedSources = syntheticAssets.size > 0 && syntheticAssets.size < (series?.length ?? 0);
+  const realSource = (series ?? []).find((x) => !x.source.isSynthetic)?.source ?? null;
   const quoteById = useMemo(
     () => new Map((quotes?.quotes ?? []).map((q) => [q.instrumentId, q])),
     [quotes],
@@ -275,7 +280,8 @@ export function MarketsBrowser({
               </thead>
               <tbody>
                 {filtered.map((r) => {
-                  const inst = instruments.find((i) => i.id === r.asset)!;
+                  const inst = getInstrument(r.asset);
+                  if (!inst) return null;
                   const q = quoteById.get(r.asset);
                   return (
                     <tr key={r.asset}>
@@ -293,6 +299,9 @@ export function MarketsBrowser({
                             </span>
                             {inst.kind === "etf" ? (
                               <Badge tone="muted">ETF</Badge>
+                            ) : null}
+                            {mixedSources && syntheticAssets.has(r.asset) ? (
+                              <Badge tone="warn" title="Live data was unavailable for this instrument. This row shows the synthetic demo dataset.">DEMO</Badge>
                             ) : null}
                           </span>
                           <span className="truncate text-xs text-ink-2">
@@ -373,9 +382,14 @@ export function MarketsBrowser({
             </table>
           </div>
         )}
+        {mixedSources ? (
+          <p className="border-t border-hairline px-4 py-2 text-2xs leading-4 text-warn">
+            Mixed sources. Rows marked DEMO use the synthetic dataset because live data was unavailable for them. The rest are {realSource?.label ?? "live data"}.
+          </p>
+        ) : null}
         {series?.[0] ? (
           <ProvenancePlate
-            source={series[0].source}
+            source={realSource ?? series[0].source}
             timeframe="1d"
             currency={spec.currency}
             market={spec.shortName}

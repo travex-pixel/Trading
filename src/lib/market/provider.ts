@@ -19,6 +19,7 @@ import "server-only";
 
 import type { Candle, CandleSeries, DataSource, Timeframe } from "@/lib/quant/types";
 import { CALENDARS, localParts, sessionFor, type MarketId } from "./calendar";
+import { alignByTime, neverMixSynthetic } from "./align";
 import { aggregateCandles, demoSeries, DEMO_SOURCE } from "./demo-data";
 import { dedupe, eodhdSource, parseEodhdDaily, parseEodhdIntraday, parseEodhdQuote, type Quote } from "./eodhd";
 import { getInstrument, requireInstrument, type Instrument } from "./instruments";
@@ -107,7 +108,9 @@ async function eodhdFetch(path: string, params: Record<string, string>): Promise
   url.searchParams.set("fmt", "json");
   if (url.host !== EODHD_HOST) throw new Error("Refusing to fetch from an unexpected host.");
   const res = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "edgelab-research/0.2" }, cache: "no-store" });
-  if (res.status === 401 || res.status === 403) throw new Error("EODHD rejected the API token.");
+  // EODHD answers 403 both for a bad token and for an instrument outside the plan, so say both.
+  if (res.status === 401) throw new Error("EODHD rejected the API token.");
+  if (res.status === 403) throw new Error("EODHD refused this instrument (not in the plan, or the token is invalid).");
   if (res.status === 402) throw new Error("EODHD: this data is not included in the current plan.");
   if (res.status === 429) throw new Error("EODHD rate limit reached.");
   if (!res.ok) throw new Error(`EODHD responded ${res.status}.`);
@@ -120,7 +123,8 @@ async function eodhdSeries(inst: Instrument, timeframe: Timeframe): Promise<Cand
   if (timeframe === "1d") {
     const from = new Date(Date.now() - EODHD_HISTORY_YEARS * 365.25 * 86_400_000).toISOString().slice(0, 10);
     const candles = await cached(`eodhd:eod:${symbol}`, EODHD_TTL_EOD, async () => parseEodhdDaily(await eodhdFetch(`/api/eod/${encodeURIComponent(symbol)}`, { period: "d", from, order: "a" }), inst.market));
-    return { asset: inst.id, market: inst.market, currency: inst.currency, timeframe, candles, source: eodhdSource("splits_dividends", "historical") };
+    // Crypto has no splits or dividends, so its daily bars are simply unadjusted.
+    return { asset: inst.id, market: inst.market, currency: inst.currency, timeframe, candles, source: eodhdSource(inst.market === "CRYPTO" ? "none" : "splits_dividends", "historical") };
   }
   // Intraday: hourly bars, aggregated to 4h per session. EODHD limits 1h ranges to 7200 days; we ask for two years.
   const to = Math.floor(Date.now() / 1000);
@@ -235,14 +239,11 @@ async function resolveSeries(inst: Instrument, timeframe: Timeframe): Promise<Ca
 export async function getAlignedSeries(instrumentIds: string[], timeframe: Timeframe): Promise<CandleSeries[]> {
   const instruments = instrumentIds.map((id) => requireInstrument(id));
   const series = await Promise.all(instruments.map((inst) => resolveSeries(inst, timeframe)));
-  // Strategies trade at most four instruments and need aligned bars; larger
-  // requests are watch tables, where each instrument keeps its own history.
-  return series.length > 1 && series.length <= 4 ? alignByTime(series) : series;
+  // Strategies trade at most four instruments and need aligned bars. Larger
+  // requests are watch tables, where each instrument keeps its own history
+  // and its own provenance.
+  if (series.length > 1 && series.length <= 4) return alignByTime(neverMixSynthetic(series, timeframe, demoSeries));
+  return series;
 }
 
-/** Keep only timestamps present in every series. */
-export function alignByTime(series: CandleSeries[]): CandleSeries[] {
-  const sets = series.map((s) => new Set(s.candles.map((c) => c.time)));
-  const common = (t: number) => sets.every((set) => set.has(t));
-  return series.map((s) => ({ ...s, candles: s.candles.filter((c) => common(c.time)) }));
-}
+export { alignByTime, neverMixSynthetic };
