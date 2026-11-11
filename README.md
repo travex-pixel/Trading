@@ -83,7 +83,7 @@ No secret is ever read in client code.
 
 ## Honesty notes
 
-- The demo dataset is a seeded random process with regimes, volatility clustering, jumps and overnight gaps, calibrated to plausible equity and crypto behaviour. **A result on it is not a tradable edge.** Dividends and corporate actions are not modelled in demo data.
+- The demo dataset (demo-v3) is a seeded random process calibrated against real daily histories: fat tails, volatility clustering that lasts weeks, overnight gaps at the open, earnings-style gaps for single stocks, and no manufactured momentum. See `docs/research/demo-data-calibration.md` for the method, the pre-registered criteria and the two it narrowly misses. **A result on it is not a tradable edge.** Dividends and corporate actions are not modelled in demo data.
 - Annualised return is hidden for periods under 180 days. Sharpe and Sortino are hidden with fewer than 30 bars, and trade statistics are flagged below 30 trades.
 - Shared links carry the configuration and period, not the results. The recipient's browser recomputes them.
 - Seeded Arena participants are bots and are labelled as bots. Simulated positions are labelled simulated.

@@ -13,14 +13,30 @@
  *
  * Hourly bars are generated; 4h and daily bars are aggregated per session so
  * all timeframes of one instrument are internally consistent.
+ *
+ * demo-v3 was recalibrated against real daily histories (research/stylised_facts.py):
+ * volatility now clusters for weeks rather than hours, returns have fat tails,
+ * single stocks have earnings-style gaps, overnight news shows up as a gap at the
+ * open where stops and fills see it, and crypto regimes no longer manufacture
+ * momentum that real Bitcoin does not have.
  */
 
 import { hashSeed, makeGaussian, mulberry32 } from "@/lib/quant/prng";
-import type { Candle, CandleSeries, DataSource, Timeframe } from "@/lib/quant/types";
-import { CALENDARS, sessionBarTimes, tradingSessions, type MarketId } from "./calendar";
+import type {
+  Candle,
+  CandleSeries,
+  DataSource,
+  Timeframe,
+} from "@/lib/quant/types";
+import {
+  CALENDARS,
+  sessionBarTimes,
+  tradingSessions,
+  type MarketId,
+} from "./calendar";
 import { requireInstrument, type Instrument } from "./instruments";
 
-export const DEMO_DATASET_VERSION = "demo-v2";
+export const DEMO_DATASET_VERSION = "demo-v3";
 
 export const DEMO_SOURCE: DataSource = {
   provider: "demo",
@@ -62,43 +78,159 @@ interface RegimeParams {
  * shows roughly 6–10% annual growth, 15–18% volatility and 20–35% worst
  * drawdowns over the demo calendar, while crypto keeps its 60%+ volatility.
  */
-type RegimeSet = { params: Record<Regime, RegimeParams>; transitions: Record<Regime, Array<[Regime, number]>> };
+type RegimeSet = {
+  params: Record<Regime, RegimeParams>;
+  transitions: Record<Regime, Array<[Regime, number]>>;
+};
 
 function cryptoRegimes(): RegimeSet {
+  // demo-v2 used 75-day bulls drifting about 49%, which gave a 60-day variance
+  // ratio of 1.6 and a momentum coefficient of 0.15 against 1.17 and 0.02 for
+  // real Bitcoin. Drifts are now weaker and regimes shorter.
   return {
     params: {
-      bull: { mu: 0.00022, sigma: 0.0075, meanDuration: 24 * 75, jumpProb: 0.002, jumpSigma: 0.02, jumpMu: 0.004 },
-      bear: { mu: -0.00018, sigma: 0.0095, meanDuration: 24 * 60, jumpProb: 0.004, jumpSigma: 0.025, jumpMu: -0.008 },
-      chop: { mu: 0.00001, sigma: 0.0055, meanDuration: 24 * 50, jumpProb: 0.0015, jumpSigma: 0.015, jumpMu: 0 },
-      crash: { mu: -0.0025, sigma: 0.022, meanDuration: 24 * 6, jumpProb: 0.03, jumpSigma: 0.04, jumpMu: -0.02 },
-      recovery: { mu: 0.0006, sigma: 0.012, meanDuration: 24 * 20, jumpProb: 0.004, jumpSigma: 0.02, jumpMu: 0.006 },
+      bull: {
+        mu: 0.00014,
+        sigma: 0.00576,
+        meanDuration: 24 * 40,
+        jumpProb: 0.002,
+        jumpSigma: 0.02,
+        jumpMu: 0.003,
+      },
+      bear: {
+        mu: -0.00011,
+        sigma: 0.0072,
+        meanDuration: 24 * 30,
+        jumpProb: 0.004,
+        jumpSigma: 0.025,
+        jumpMu: -0.006,
+      },
+      chop: {
+        mu: 0.00002,
+        sigma: 0.00464,
+        meanDuration: 24 * 35,
+        jumpProb: 0.0015,
+        jumpSigma: 0.015,
+        jumpMu: 0,
+      },
+      crash: {
+        mu: -0.0012,
+        sigma: 0.0144,
+        meanDuration: 24 * 4,
+        jumpProb: 0.02,
+        jumpSigma: 0.04,
+        jumpMu: -0.015,
+      },
+      recovery: {
+        mu: 0.00015,
+        sigma: 0.0088,
+        meanDuration: 24 * 12,
+        jumpProb: 0.004,
+        jumpSigma: 0.02,
+        jumpMu: 0.004,
+      },
     },
     transitions: {
-      bull: [["chop", 0.5], ["bear", 0.3], ["crash", 0.2]],
-      bear: [["chop", 0.45], ["recovery", 0.35], ["crash", 0.2]],
-      chop: [["bull", 0.45], ["bear", 0.4], ["crash", 0.15]],
-      crash: [["recovery", 0.6], ["bear", 0.4]],
-      recovery: [["bull", 0.55], ["chop", 0.45]],
+      bull: [
+        ["chop", 0.5],
+        ["bear", 0.3],
+        ["crash", 0.2],
+      ],
+      bear: [
+        ["chop", 0.45],
+        ["recovery", 0.35],
+        ["crash", 0.2],
+      ],
+      chop: [
+        ["bull", 0.45],
+        ["bear", 0.4],
+        ["crash", 0.15],
+      ],
+      crash: [
+        ["recovery", 0.6],
+        ["bear", 0.4],
+      ],
+      recovery: [
+        ["bull", 0.55],
+        ["chop", 0.45],
+      ],
     },
   };
 }
 
 function equityRegimes(): RegimeSet {
   // Durations are in trading hours (about 6 a day, 1512 a year on the ASX).
+  // demo-v2's long, strong drifts made prices trend: across 40 simulated paths
+  // the 60-day variance ratio was 1.18 and past returns predicted future ones
+  // (momentum coefficient +0.045), where real stocks show a slight reversal.
+  // Drifts are now about half as strong and regimes shorter.
   return {
     params: {
-      bull: { mu: 0.00014, sigma: 0.0028, meanDuration: 6 * 200, jumpProb: 0.0008, jumpSigma: 0.008, jumpMu: 0.001 },
-      bear: { mu: -0.00014, sigma: 0.0042, meanDuration: 6 * 90, jumpProb: 0.0015, jumpSigma: 0.01, jumpMu: -0.002 },
-      chop: { mu: 0.00003, sigma: 0.0026, meanDuration: 6 * 120, jumpProb: 0.0006, jumpSigma: 0.006, jumpMu: 0 },
-      crash: { mu: -0.0012, sigma: 0.0095, meanDuration: 6 * 15, jumpProb: 0.01, jumpSigma: 0.018, jumpMu: -0.006 },
-      recovery: { mu: 0.00026, sigma: 0.0048, meanDuration: 6 * 60, jumpProb: 0.0015, jumpSigma: 0.009, jumpMu: 0.002 },
+      bull: {
+        mu: 0.00008,
+        sigma: 0.0028,
+        meanDuration: 6 * 110,
+        jumpProb: 0.0008,
+        jumpSigma: 0.008,
+        jumpMu: 0.001,
+      },
+      bear: {
+        mu: -0.00007,
+        sigma: 0.0042,
+        meanDuration: 6 * 60,
+        jumpProb: 0.0015,
+        jumpSigma: 0.01,
+        jumpMu: -0.002,
+      },
+      chop: {
+        mu: 0.00003,
+        sigma: 0.0026,
+        meanDuration: 6 * 90,
+        jumpProb: 0.0006,
+        jumpSigma: 0.006,
+        jumpMu: 0,
+      },
+      crash: {
+        mu: -0.0009,
+        sigma: 0.0095,
+        meanDuration: 6 * 8,
+        jumpProb: 0.01,
+        jumpSigma: 0.018,
+        jumpMu: -0.006,
+      },
+      recovery: {
+        mu: 0.00016,
+        sigma: 0.0048,
+        meanDuration: 6 * 35,
+        jumpProb: 0.0015,
+        jumpSigma: 0.009,
+        jumpMu: 0.002,
+      },
     },
     transitions: {
-      bull: [["chop", 0.6], ["bear", 0.28], ["crash", 0.12]],
-      bear: [["recovery", 0.5], ["chop", 0.4], ["crash", 0.1]],
-      chop: [["bull", 0.6], ["bear", 0.32], ["crash", 0.08]],
-      crash: [["recovery", 0.7], ["bear", 0.3]],
-      recovery: [["bull", 0.6], ["chop", 0.4]],
+      bull: [
+        ["chop", 0.6],
+        ["bear", 0.28],
+        ["crash", 0.12],
+      ],
+      bear: [
+        ["recovery", 0.5],
+        ["chop", 0.4],
+        ["crash", 0.1],
+      ],
+      chop: [
+        ["bull", 0.6],
+        ["bear", 0.32],
+        ["crash", 0.08],
+      ],
+      crash: [
+        ["recovery", 0.7],
+        ["bear", 0.3],
+      ],
+      recovery: [
+        ["bull", 0.6],
+        ["chop", 0.4],
+      ],
     },
   };
 }
@@ -123,18 +255,26 @@ function pickNext(set: RegimeSet, current: Regime, u: number): Regime {
  * scaled to produce realistic annualised volatility (roughly 15–20% for a
  * broad equity index, 60%+ for Bitcoin).
  */
-const MARKET_GEN: Record<MarketId, { gapSigma: number; factorSigma: number }> = {
+const MARKET_GEN: Record<
+  MarketId,
+  { gapSigma: number; factorSigma: number; newsSigma: number }
+> = {
   // Equity index factor: about 0.3% per trading hour plus an overnight gap, near 16% annualised.
-  ASX: { gapSigma: 0.0045, factorSigma: 0.0028 },
-  US: { gapSigma: 0.005, factorSigma: 0.0029 },
-  CRYPTO: { gapSigma: 0, factorSigma: 0.0075 },
+  ASX: { gapSigma: 0.0045, factorSigma: 0.0028, newsSigma: 0 },
+  US: { gapSigma: 0.005, factorSigma: 0.0029, newsSigma: 0 },
+  // Crypto never closes, so its news arrives as a fat-tailed shock once a day rather than as a gap.
+  CRYPTO: { gapSigma: 0, factorSigma: 0.0075, newsSigma: 0.036 },
 };
 
 interface MarketFactor {
   /** Bar open times (hourly, within sessions) for the whole demo calendar. */
   times: number[];
-  /** Log return of the shared factor for each bar. */
+  /** Log return of the shared factor for each bar, excluding any overnight gap. */
   logReturns: Float64Array;
+  /** Overnight gap of the shared factor, non-zero only on the first bar of a session. */
+  gapLog: Float64Array;
+  /** Index of the trading day each bar belongs to (session for equities, UTC day for crypto). */
+  dayOf: Int32Array;
   /** Volatility state per bar, for volume synthesis. */
   vol: Float64Array;
   /** Index of the first bar of each session (for overnight gaps). */
@@ -142,11 +282,30 @@ interface MarketFactor {
   regimes: Regime[];
 }
 
-const factorCache = new Map<MarketId, MarketFactor>();
+/**
+ * Which simulated path each market publishes. The generator is a stochastic
+ * process, so any single seed is one draw from it. The published path is the
+ * most typical of 40 candidates for the market's index fund (closest to the
+ * process medians for growth, worst fall, volatility, day-to-day
+ * autocorrelation, the 20-day variance ratio and a trend rule's advantage over
+ * holding), not the most flattering, and not one that happens to reward trend
+ * rules. Chosen by research/demo-paths.research.ts and pick_demo_path.py.
+ */
+export const DEMO_PATH: Record<MarketId, number> = {
+  ASX: 7,
+  US: 36,
+  CRYPTO: 2,
+};
+
+const factorCache = new Map<string, MarketFactor>();
 
 /** The shared factor every instrument in a market loads on. */
-function marketFactor(market: MarketId): MarketFactor {
-  const cached = factorCache.get(market);
+function marketFactor(
+  market: MarketId,
+  path: number = DEMO_PATH[market],
+): MarketFactor {
+  const cacheKey = `${market}:${path}`;
+  const cached = factorCache.get(cacheKey);
   if (cached) return cached;
   const gen = MARKET_GEN[market];
   const set = regimeSet(market);
@@ -160,70 +319,209 @@ function marketFactor(market: MarketId): MarketFactor {
     for (const t of bars) times.push(t);
   }
   const n = times.length;
-  const uniform = mulberry32(hashSeed(`${DEMO_DATASET_VERSION}:factor:${market}`));
+  const uniform = mulberry32(
+    hashSeed(`${DEMO_DATASET_VERSION}:factor:${market}:${path}`),
+  );
   const gauss = makeGaussian(uniform);
+  const student = makeStudentT(gauss, 5);
   const logReturns = new Float64Array(n);
+  const gapLog = new Float64Array(n);
   const vol = new Float64Array(n);
+  const dayOf = new Int32Array(n);
   const regimeAt: Regime[] = new Array(n);
+
+  // Daily log-volatility: AR(1) with a half-life of about 46 trading days and a
+  // leverage effect (a down day raises tomorrow's volatility). Normalised so the
+  // average variance is unchanged and the annual volatility calibration holds.
+  const VOL = SV[market];
+  const norm = Math.exp(-VOL.sd * VOL.sd);
+  let h = 0;
+  let day = -1;
+  let dayReturn = 0;
+  let dayScale = 1;
 
   let regime: Regime = "chop";
   let remaining = Math.round(R[regime].meanDuration * (0.5 + uniform()));
-  let volState = 1;
 
   for (let i = 0; i < n; i++) {
+    const newDay =
+      market === "CRYPTO"
+        ? i === 0 ||
+          Math.floor(times[i] / 86_400_000) !==
+            Math.floor(times[i - 1] / 86_400_000)
+        : sessionStarts.has(i);
+    if (newDay) {
+      if (day >= 0) {
+        const z =
+          dayReturn /
+          (R[regime].sigma *
+            dayScale *
+            Math.sqrt(market === "CRYPTO" ? 24 : 6));
+        h =
+          VOL.phi * h +
+          VOL.eta * gauss() +
+          VOL.leverage * (Math.max(0, -z) - 0.4);
+      }
+      day++;
+      dayReturn = 0;
+      dayScale = Math.exp(h) * norm;
+    }
+    dayOf[i] = day;
     if (remaining <= 0) {
       regime = pickNext(set, regime, uniform());
-      remaining = Math.max(24, Math.round(R[regime].meanDuration * (0.4 + 1.2 * uniform())));
+      remaining = Math.max(
+        24,
+        Math.round(R[regime].meanDuration * (0.4 + 1.2 * uniform())),
+      );
     }
     remaining--;
     const p = R[regime];
-    const shock = gauss();
-    volState = Math.max(0.4, Math.min(3.5, volState + 0.04 * (1 - volState) + 0.09 * (Math.abs(shock) - 0.8)));
-    const sigma = p.sigma * volState;
-    let r = p.mu - 0.5 * sigma * sigma + sigma * shock;
+    const sigma = p.sigma * dayScale;
+    let r = p.mu - 0.5 * sigma * sigma + sigma * student();
     if (uniform() < p.jumpProb) r += p.jumpMu + p.jumpSigma * gauss();
-    // Overnight gap: the first bar of a session carries the news since the last close.
-    if (sessionStarts.has(i) && i > 0 && gen.gapSigma > 0) r += gen.gapSigma * volState * gauss();
+    // Overnight news arrives as a gap at the open, fat-tailed and scaled by the day's volatility.
+    if (sessionStarts.has(i) && i > 0 && gen.gapSigma > 0)
+      gapLog[i] = gen.gapSigma * dayScale * makeStudentT(gauss, 3)();
+    if (newDay && gen.newsSigma > 0)
+      r += gen.newsSigma * dayScale * makeStudentT(gauss, 3)();
     logReturns[i] = r;
+    dayReturn += r + gapLog[i];
     vol[i] = sigma;
     regimeAt[i] = regime;
   }
-  const factor: MarketFactor = { times, logReturns, vol, sessionStarts, regimes: regimeAt };
-  factorCache.set(market, factor);
+  const factor: MarketFactor = {
+    times,
+    logReturns,
+    gapLog,
+    dayOf,
+    vol,
+    sessionStarts,
+    regimes: regimeAt,
+  };
+  factorCache.set(cacheKey, factor);
   return factor;
+}
+
+/**
+ * Stochastic-volatility settings per market: AR(1) coefficient on daily
+ * log-volatility, its innovation, the implied stationary standard deviation,
+ * and the leverage effect. Chosen to match the volatility clustering and fat
+ * tails of real daily returns (see research/stylised_facts.py).
+ */
+const SV: Record<
+  MarketId,
+  { phi: number; eta: number; sd: number; leverage: number }
+> = (() => {
+  const make = (phi: number, sd: number, leverage: number) => ({
+    phi,
+    eta: sd * Math.sqrt(1 - phi * phi),
+    sd,
+    leverage,
+  });
+  return {
+    ASX: make(0.985, 0.5, 0.05),
+    US: make(0.985, 0.5, 0.05),
+    CRYPTO: make(0.975, 0.45, 0.03),
+  };
+})();
+
+/** Student-t draws with `df` degrees of freedom, scaled to unit variance. */
+function makeStudentT(gauss: () => number, df: number): () => number {
+  const scale = Math.sqrt((df - 2) / df);
+  return () => {
+    let chi = 0;
+    for (let k = 0; k < df; k++) {
+      const z = gauss();
+      chi += z * z;
+    }
+    return (gauss() / Math.sqrt(chi / df)) * scale;
+  };
 }
 
 const hourlyCache = new Map<string, Candle[]>();
 
 /** Hourly candles (within sessions) for one instrument. Deterministic and cached in memory. */
-export function demoHourlyCandles(instrumentId: string): Candle[] {
-  const cached = hourlyCache.get(instrumentId);
+export function demoHourlyCandles(
+  instrumentId: string,
+  pathOverride?: number,
+): Candle[] {
+  const path =
+    pathOverride ?? DEMO_PATH[requireInstrument(instrumentId).market];
+  const cacheKey = `${instrumentId}:${path}`;
+  const cached = hourlyCache.get(cacheKey);
   if (cached) return cached;
   const inst = requireInstrument(instrumentId);
-  const factor = marketFactor(inst.market);
+  const factor = marketFactor(inst.market, path);
   const gen = MARKET_GEN[inst.market];
-  const uniform = mulberry32(hashSeed(`${DEMO_DATASET_VERSION}:${instrumentId}`));
+  const uniform = mulberry32(
+    hashSeed(`${DEMO_DATASET_VERSION}:${instrumentId}:${path}`),
+  );
   const gauss = makeGaussian(uniform);
   const n = factor.times.length;
   const candles: Candle[] = new Array(n);
 
   // Beta and idiosyncratic volatility from the instrument's target annualised vol.
-  const barsPerYear = inst.market === "CRYPTO" ? 24 * 365 : (CALENDARS[inst.market].tradingDaysPerYear * 6 + 0) * 1.0;
+  const barsPerYear =
+    inst.market === "CRYPTO"
+      ? 24 * 365
+      : (CALENDARS[inst.market].tradingDaysPerYear * 6 + 0) * 1.0;
   const targetHourly = inst.demoVol / Math.sqrt(barsPerYear);
   const factorHourly = gen.factorSigma;
-  const beta = inst.kind === "etf" ? 1 : Math.min(1.6, Math.max(0.6, (targetHourly / factorHourly) * 0.75));
-  const idio = inst.kind === "etf" ? targetHourly * 0.15 : Math.sqrt(Math.max(0, targetHourly ** 2 - (beta * factorHourly) ** 2)) * 0.9;
+  const beta =
+    inst.kind === "etf"
+      ? 1
+      : Math.min(1.6, Math.max(0.6, (targetHourly / factorHourly) * 0.75));
+  const idio =
+    inst.kind === "etf"
+      ? targetHourly * 0.15
+      : Math.sqrt(Math.max(0, targetHourly ** 2 - (beta * factorHourly) ** 2)) *
+        0.9;
   const alpha = (uniform() - 0.5) * 0.00004;
 
-  let price = inst.demoStart;
+  const price = inst.demoStart;
   const SUBSTEPS = 4;
-  const volumeBase = inst.market === "CRYPTO" ? (inst.symbol === "BTC" ? 1_200 : inst.symbol === "ETH" ? 18_000 : 400_000) : Math.max(50_000, Math.round(40_000_000 / inst.demoStart));
+  const volumeBase =
+    inst.market === "CRYPTO"
+      ? inst.symbol === "BTC"
+        ? 1_200
+        : inst.symbol === "ETH"
+          ? 18_000
+          : 400_000
+      : Math.max(50_000, Math.round(40_000_000 / inst.demoStart));
   const decimals = price < 10 ? 3 : 2;
   const round = (v: number) => Number(v.toFixed(decimals));
+  const student = makeStudentT(gauss, 5);
 
+  // Idiosyncratic volatility clusters too, more briefly than the market's.
+  const idioPhi = 0.95;
+  const idioSd = 0.35;
+  const idioNorm = Math.exp(-idioSd * idioSd);
+  let hIdio = 0;
+  let lastDay = -1;
+  let idioScale = 1;
+  // Single stocks report about four times a year: a fat-tailed gap at the open.
+  const earningsProb =
+    inst.kind === "etf" || inst.market === "CRYPTO"
+      ? 0
+      : 4 / CALENDARS[inst.market].tradingDaysPerYear;
+
+  let prevClose = price;
   for (let i = 0; i < n; i++) {
-    const totalLog = alpha + beta * factor.logReturns[i] + idio * gauss();
-    const open = price;
+    const d = factor.dayOf[i];
+    if (d !== lastDay) {
+      hIdio =
+        idioPhi * hIdio + idioSd * Math.sqrt(1 - idioPhi * idioPhi) * gauss();
+      idioScale = Math.exp(hIdio) * idioNorm;
+      lastDay = d;
+    }
+    let gap = 0;
+    if (factor.sessionStarts.has(i) && i > 0 && gen.gapSigma > 0) {
+      gap = beta * factor.gapLog[i] + idio * idioScale * 1.2 * gauss();
+      if (uniform() < earningsProb) gap += 0.045 * makeStudentT(gauss, 3)();
+    }
+    const intra =
+      alpha + beta * factor.logReturns[i] + idio * idioScale * student();
+    const open = i === 0 ? price : prevClose * Math.exp(gap);
     let hi = open;
     let lo = open;
     let p = open;
@@ -236,31 +534,33 @@ export function demoHourlyCandles(instrumentId: string): Candle[] {
       noiseSum += z;
     }
     for (let s = 0; s < SUBSTEPS; s++) {
-      const step = totalLog / SUBSTEPS + (noises[s] - noiseSum / SUBSTEPS);
+      const step = intra / SUBSTEPS + (noises[s] - noiseSum / SUBSTEPS);
       p = p * Math.exp(step);
       if (p > hi) hi = p;
       if (p < lo) lo = p;
     }
-    const close = open * Math.exp(totalLog);
+    const close = open * Math.exp(intra);
     if (close > hi) hi = close;
     if (close < lo) lo = close;
-    const activity = Math.abs(totalLog) / Math.max(factor.vol[i], 1e-6);
+    const activity =
+      (Math.abs(intra) + Math.abs(gap)) / Math.max(factor.vol[i], 1e-6);
     const sessionBoost = factor.sessionStarts.has(i) ? 1.6 : 1;
-    const volume = volumeBase * (0.6 + 0.8 * uniform() + 0.9 * activity) * (factor.vol[i] / factorHourly) * sessionBoost;
-    candles[i] = { time: factor.times[i], open: round(open), high: round(hi), low: round(lo), close: round(close), volume: Math.round(volume) };
-    price = close;
+    const volume =
+      volumeBase *
+      (0.6 + 0.8 * uniform() + 0.9 * activity) *
+      (factor.vol[i] / factorHourly) *
+      sessionBoost;
+    candles[i] = {
+      time: factor.times[i],
+      open: round(open),
+      high: round(hi),
+      low: round(lo),
+      close: round(close),
+      volume: Math.round(volume),
+    };
+    prevClose = close;
   }
-  // Open of the next bar equals the previous close within a session; across sessions the first
-  // bar's return already includes the gap, so the gap shows up as open != previous close:
-  for (let i = 1; i < n; i++) {
-    if (factor.sessionStarts.has(i)) {
-      const gap = Math.exp(gen.gapSigma * 0.8 * (hashSeed(`${instrumentId}:gap:${i}`) / 4294967296 - 0.5) * 2);
-      const c = candles[i];
-      const o = round(candles[i - 1].close * gap);
-      candles[i] = { ...c, open: o, high: Math.max(c.high, o), low: Math.min(c.low, o) };
-    }
-  }
-  hourlyCache.set(instrumentId, candles);
+  hourlyCache.set(cacheKey, candles);
   return candles;
 }
 
@@ -269,9 +569,17 @@ export function demoHourlyCandles(instrumentId: string): Candle[] {
  * a daily bar covers one session; a 4h bar starts at the session open and
  * every four hours after it.
  */
-export function aggregateCandles(hourly: Candle[], timeframe: Timeframe, market: MarketId): Candle[] {
+export function aggregateCandles(
+  hourly: Candle[],
+  timeframe: Timeframe,
+  market: MarketId,
+): Candle[] {
   if (timeframe === "1h" || hourly.length === 0) return hourly;
-  const sessions = tradingSessions(market, hourly[0].time, hourly[hourly.length - 1].time);
+  const sessions = tradingSessions(
+    market,
+    hourly[0].time,
+    hourly[hourly.length - 1].time,
+  );
   const bucketOf = new Map<number, number>();
   for (const s of sessions) {
     const buckets = sessionBarTimes(s, timeframe);
@@ -289,7 +597,14 @@ export function aggregateCandles(hourly: Candle[], timeframe: Timeframe, market:
     if (b !== bucket) {
       if (current) out.push(current);
       bucket = b;
-      current = { time: b, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume };
+      current = {
+        time: b,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+        volume: c.volume,
+      };
     } else if (current) {
       if (c.high > current.high) current.high = c.high;
       if (c.low < current.low) current.low = c.low;
@@ -303,7 +618,10 @@ export function aggregateCandles(hourly: Candle[], timeframe: Timeframe, market:
 
 const seriesCache = new Map<string, CandleSeries>();
 
-export function demoSeries(instrumentId: string, timeframe: Timeframe): CandleSeries {
+export function demoSeries(
+  instrumentId: string,
+  timeframe: Timeframe,
+): CandleSeries {
   const key = `${instrumentId}:${timeframe}`;
   const cached = seriesCache.get(key);
   if (cached) return cached;
@@ -313,7 +631,11 @@ export function demoSeries(instrumentId: string, timeframe: Timeframe): CandleSe
     market: inst.market,
     currency: inst.currency,
     timeframe,
-    candles: aggregateCandles(demoHourlyCandles(inst.id), timeframe, inst.market),
+    candles: aggregateCandles(
+      demoHourlyCandles(inst.id),
+      timeframe,
+      inst.market,
+    ),
     source: DEMO_SOURCE,
   };
   seriesCache.set(key, series);
@@ -330,5 +652,28 @@ export function demoRegimeAt(market: MarketId, time: number): Regime | null {
     if (f.times[mid] <= time) lo = mid;
     else hi = mid - 1;
   }
-  return f.times[lo] <= time && time - f.times[lo] < HOUR * 24 ? f.regimes[lo] : null;
+  return f.times[lo] <= time && time - f.times[lo] < HOUR * 24
+    ? f.regimes[lo]
+    : null;
+}
+
+/** Daily closes of an instrument on an alternative simulated path. Research only: the app always uses DEMO_PATH. */
+export function demoSeriesOnPath(
+  instrumentId: string,
+  timeframe: Timeframe,
+  path: number,
+): CandleSeries {
+  const inst = requireInstrument(instrumentId);
+  return {
+    asset: inst.id,
+    market: inst.market,
+    currency: inst.currency,
+    timeframe,
+    candles: aggregateCandles(
+      demoHourlyCandles(inst.id, path),
+      timeframe,
+      inst.market,
+    ),
+    source: DEMO_SOURCE,
+  };
 }

@@ -17,7 +17,7 @@ function portfolio(partial: Partial<PaperPortfolio>): PaperPortfolio {
     status: "running",
     stoppedAt: null,
     createdAt: 0,
-    dataVersion: "demo-v2",
+    dataVersion: "demo-v3",
     ...partial,
   };
 }
